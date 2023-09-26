@@ -32,7 +32,7 @@ def export_param_card(
         param_transform = parameters[param_name].transform
 
         # Transform parameters if needed
-        if param_transform is not None:
+        if param_transform is not None and not param_transform == "_":
             variables = {"theta": param_value}
             param_value = eval(param_transform, variables)
 
@@ -121,7 +121,7 @@ def export_reweight_card(
             param_transform = parameters[param_name].transform
 
             # Transform parameters if needed
-            if param_transform is not None:
+            if param_transform is not None and not param_transform == "_":
                 variables = {"theta": param_value}
                 param_value = eval(param_transform, variables)
 

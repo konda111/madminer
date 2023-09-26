@@ -8,6 +8,8 @@ from typing import Dict
 from typing import List
 
 import numpy as np
+import multiprocessing as mp
+from functools import partial
 
 from particle import Particle
 from madminer.models import Cut
@@ -23,6 +25,53 @@ from madminer.utils.various import math_commands
 
 logger = logging.getLogger(__name__)
 
+# helper function for parelliization
+def _process_event(
+    eventi, 
+    sampling_benchmark,
+    avg_efficiencies,
+    cuts,
+    efficiencies,
+    energy_resolutions,
+    eta_resolutions,
+    fail_cuts,
+    fail_efficiencies,
+    n_events_with_negative_weights,
+    observables,
+    pass_cuts,
+    pass_efficiencies,
+    phi_resolutions,
+    pt_resolutions,
+    weight_names_all_events,
+    xml = True
+):
+    event, i_event = eventi
+    if xml:
+        parse_func = _parse_xml_event
+    else:
+        parse_func = _parse_txt_events
+    particles, weights, global_event_data = parse_func(event, sampling_benchmark)
+    n_events_with_negative_weights, observations, pass_all, weight_names_all_events, weights = _parse_event(
+        avg_efficiencies,
+        cuts,
+        efficiencies,
+        energy_resolutions,
+        eta_resolutions,
+        fail_cuts,
+        fail_efficiencies,
+        n_events_with_negative_weights,
+        observables,
+        particles,
+        pass_cuts,
+        pass_efficiencies,
+        phi_resolutions,
+        pt_resolutions,
+        weight_names_all_events,
+        weights,
+        global_event_data=global_event_data,
+        print_event=i_event if i_event % 10000 == 0 else 0,
+    )
+    return observations, weights
 
 def parse_lhe_file(
     filename,
@@ -129,78 +178,140 @@ def parse_lhe_file(
     weights_all_events = []
     weight_names_all_events = None
 
-    # Option one: XML parsing
-    if parse_events_as_xml:
+    parallelize = False
+    print("Parallelize: ", parallelize)
+    if parallelize:
+        pool = mp.Pool()
+        # Option one: XML parsing
+
+        # def process_event(eventi, xml = True):
+        #     event, i_event = eventi
+        #     if xml:
+        #         parse_func = _parse_xml_event
+        #     else:
+        #         parse_func = _parse_txt_events
+        #     particles, weights, global_event_data = parse_func(event, sampling_benchmark)
+        #     n_events_with_negative_weights, observations, pass_all, weight_names_all_events, weights = _parse_event(
+        #         avg_efficiencies,
+        #         cuts,
+        #         efficiencies,
+        #         energy_resolutions,
+        #         eta_resolutions,
+        #         fail_cuts,
+        #         fail_efficiencies,
+        #         n_events_with_negative_weights,
+        #         observables,
+        #         particles,
+        #         pass_cuts,
+        #         pass_efficiencies,
+        #         phi_resolutions,
+        #         pt_resolutions,
+        #         weight_names_all_events,
+        #         weights,
+        #         global_event_data=global_event_data,
+        #         print_event=i_event if i_event % 10000 == 0 else 0,
+        #     )
+        #     return observations, weights
+
         events = _untar_and_parse_lhe_file(filename, ["event"])
-        for i_event, event in enumerate(events, start=1):
-            if i_event % 100000 == 0:
-                logger.info("  Processing event %d/%d", i_event, n_events_runcard)
-
-            # Parse event
-            particles, weights, global_event_data = _parse_xml_event(event, sampling_benchmark)
-            n_events_with_negative_weights, observations, pass_all, weight_names_all_events, weights = _parse_event(
-                avg_efficiencies,
-                cuts,
-                efficiencies,
-                energy_resolutions,
-                eta_resolutions,
-                fail_cuts,
-                fail_efficiencies,
-                n_events_with_negative_weights,
-                observables,
-                particles,
-                pass_cuts,
-                pass_efficiencies,
-                phi_resolutions,
-                pt_resolutions,
-                weight_names_all_events,
-                weights,
-                global_event_data=global_event_data,
-                print_event=i_event if i_event <= 20 else 0,
-            )
-
-            # Skip events that fail anything
-            if not pass_all:
-                continue
-
-            # Store results
-            observations_all_events.append(observations)
-            weights_all_events.append(weights)
-
-    # Option two: text parsing
+        processed_events = pool.map(
+            partial(
+                _process_event, 
+                sampling_benchmark=sampling_benchmark,
+                avg_efficiencies=avg_efficiencies,
+                cuts=cuts,
+                efficiencies=efficiencies,
+                energy_resolutions=energy_resolutions,
+                eta_resolutions=eta_resolutions,
+                fail_cuts=fail_cuts,
+                fail_efficiencies=fail_efficiencies,
+                n_events_with_negative_weights=n_events_with_negative_weights,
+                observables=observables,
+                pass_cuts=pass_cuts,
+                pass_efficiencies=pass_efficiencies,
+                phi_resolutions=phi_resolutions,
+                pt_resolutions=pt_resolutions,
+                weight_names_all_events=weight_names_all_events,
+                xml = parse_events_as_xml
+            ), 
+            enumerate(events, start=1)
+        )
+        processed_events = np.array(processed_events)
+        observations_all_events = processed_events[:,0]
+        weights_all_events = processed_events[:,1]
     else:
-        # Iterate over events in LHE file
-        for i_event, (particles, weights) in enumerate(_parse_txt_events(filename, sampling_benchmark), start=1):
-            if i_event % 100000 == 0:
-                logger.info("  Processing event %d/%d", i_event, n_events_runcard)
+        # Option one: XML parsing
+        if parse_events_as_xml:
+            events = _untar_and_parse_lhe_file(filename, ["event"])
+            for i_event, event in enumerate(events, start=1):
+                if i_event % 100000 == 0:
+                    logger.info("  Processing event %d/%d", i_event, n_events_runcard)
 
-            n_events_with_negative_weights, observations, pass_all, weight_names_all_events, weights = _parse_event(
-                avg_efficiencies,
-                cuts,
-                efficiencies,
-                energy_resolutions,
-                eta_resolutions,
-                fail_cuts,
-                fail_efficiencies,
-                n_events_with_negative_weights,
-                observables,
-                particles,
-                pass_cuts,
-                pass_efficiencies,
-                phi_resolutions,
-                pt_resolutions,
-                weight_names_all_events,
-                weights,
-                print_event=i_event if i_event <= 20 else 0,
-            )
+                # Parse event
+                particles, weights, global_event_data = _parse_xml_event(event, sampling_benchmark)
+                n_events_with_negative_weights, observations, pass_all, weight_names_all_events, weights = _parse_event(
+                    avg_efficiencies,
+                    cuts,
+                    efficiencies,
+                    energy_resolutions,
+                    eta_resolutions,
+                    fail_cuts,
+                    fail_efficiencies,
+                    n_events_with_negative_weights,
+                    observables,
+                    particles,
+                    pass_cuts,
+                    pass_efficiencies,
+                    phi_resolutions,
+                    pt_resolutions,
+                    weight_names_all_events,
+                    weights,
+                    global_event_data=global_event_data,
+                    print_event=i_event if i_event % 10000 == 0 else 0,
+                )
 
-            # Skip events that fail anything
-            if not pass_all:
-                continue
+                # Skip events that fail anything
+                if not pass_all:
+                    continue
 
-            # Store results
-            observations_all_events.append(observations)
-            weights_all_events.append(weights)
+                # Store results
+                observations_all_events.append(observations)
+                weights_all_events.append(weights)
+
+        # Option two: text parsing
+        else:
+            # Iterate over events in LHE file
+            for i_event, (particles, weights) in enumerate(_parse_txt_events(filename, sampling_benchmark), start=1):
+                if i_event % 100000 == 0:
+                    logger.info("  Processing event %d/%d", i_event, n_events_runcard)
+
+                n_events_with_negative_weights, observations, pass_all, weight_names_all_events, weights = _parse_event(
+                    avg_efficiencies,
+                    cuts,
+                    efficiencies,
+                    energy_resolutions,
+                    eta_resolutions,
+                    fail_cuts,
+                    fail_efficiencies,
+                    n_events_with_negative_weights,
+                    observables,
+                    particles,
+                    pass_cuts,
+                    pass_efficiencies,
+                    phi_resolutions,
+                    pt_resolutions,
+                    weight_names_all_events,
+                    weights,
+                    print_event=i_event if i_event <= 20 else 0,
+                )
+
+                # Skip events that fail anything
+                if not pass_all:
+                    continue
+
+                # Store results
+                observations_all_events.append(observations)
+                weights_all_events.append(weights)
 
     # Check results
     n_events_pass = _report_parse_results(

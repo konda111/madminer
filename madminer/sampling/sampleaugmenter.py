@@ -1668,7 +1668,7 @@ class SampleAugmenter(DataAnalyzer):
                 )
                 for i, this_relevant_augmented_data in enumerate(relevant_augmented_data):
                     augmented_data[i][found_now] = this_relevant_augmented_data
-
+                # print(f"done: {np.count_nonzero(done)} of {done.size}")
                 # Finished?
                 if np.all(done):
                     break
