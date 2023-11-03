@@ -48,14 +48,16 @@ def parse_delphes_root_file(
         logger.debug("Extracting weights %s", weight_labels)
 
     # Delphes ROOT file
-    with uproot.open(delphes_sample_file) as root_file:
-        tree = root_file["Delphes"]
+    # with uproot.open(delphes_sample_file) as root_file:
+    tree = uproot.open(delphes_sample_file)
+    tree = tree['Delphes']
 
     # Weights
     weights = None
     if weight_labels is not None:
         try:
-            weights = tree.array("Weight.Weight")
+            # weights = tree.array("Weight.Weight")
+            weights = tree["Weight.Weight"].array()
 
             n_weights = len(weights[0])
             n_events = len(weights)
@@ -212,6 +214,11 @@ def parse_delphes_root_file(
         else:
             combined_filter = np.logical_and(combined_filter, values_this_cut)
 
+        n_pass = np.sum(combined_filter)
+        n_fail = np.sum(np.invert(combined_filter))
+
+        logger.debug("  %s / %s events pass all so far applied cuts", n_pass, n_pass + n_fail)
+
     # Apply filter
     if combined_filter is not None:
         n_pass = np.sum(combined_filter)
@@ -247,18 +254,25 @@ def parse_delphes_root_file(
 
 
 def _get_n_events(tree):
-    es = tree.array("Event")
+    # es = tree.array("Event")
+    es = tree["Event"].array()
     n_events = len(es)
     return n_events
 
 
 def _get_particles_truth(tree, pt_min, eta_max, included_pdgids=None):
-    es = tree.array("Particle.E")
-    pts = tree.array("Particle.PT")
-    etas = tree.array("Particle.Eta")
-    phis = tree.array("Particle.Phi")
-    charges = tree.array("Particle.Charge")
-    pdgids = tree.array("Particle.PID")
+    # es = tree.array("Particle.E")
+    es = tree["Particle.E"].array()
+    # pts = tree.array("Particle.PT")
+    pts = tree["Particle.PT"].array()
+    # etas = tree.array("Particle.Eta")
+    etas = tree["Particle.Eta"].array()
+    # phis = tree.array("Particle.Phi")
+    phis = tree["Particle.Phi"].array()
+    # charges = tree.array("Particle.Charge")
+    charges = tree["Particle.Charge"].array()
+    # pdgids = tree.array("Particle.PID")
+    pdgids = tree["Particle.PID"].array()
 
     all_particles = []
 
@@ -283,10 +297,14 @@ def _get_particles_truth(tree, pt_min, eta_max, included_pdgids=None):
 
 
 def _get_particles_charged(tree, name, mass, pdgid_positive_charge, pt_min, eta_max):
-    pts = tree.array(f"{name}.PT")
-    etas = tree.array(f"{name}.Eta")
-    phis = tree.array(f"{name}.Phi")
-    charges = tree.array(f"{name}.Charge")
+    # pts = tree.array(f"{name}.PT")
+    pts = tree[f"{name}.PT"].array()
+    # etas = tree.array(f"{name}.Eta")
+    etas = tree[f"{name}.Eta"].array()
+    # phis = tree.array(f"{name}.Phi")
+    phis = tree[f"{name}.Phi"].array()
+    # charges = tree.array(f"{name}.Charge")
+    charges = tree[f"{name}.Charge"].array()
 
     all_particles = []
 
@@ -312,16 +330,24 @@ def _get_particles_charged(tree, name, mass, pdgid_positive_charge, pt_min, eta_
 
 def _get_particles_leptons(tree, pt_min_e, eta_max_e, pt_min_mu, eta_max_mu):
     ids_mu = {int(p.pdgid) for p in Particle.findall(pdg_name="mu")}
-    pt_mu = tree.array("Muon.PT")
-    eta_mu = tree.array("Muon.Eta")
-    phi_mu = tree.array("Muon.Phi")
-    charge_mu = tree.array("Muon.Charge")
+    # pt_mu = tree.array("Muon.PT")
+    pt_mu = tree["Muon.PT"].array()
+    # eta_mu = tree.array("Muon.Eta")
+    eta_mu = tree["Muon.Eta"].array()
+    # phi_mu = tree.array("Muon.Phi")
+    phi_mu = tree["Muon.Phi"].array()
+    # charge_mu = tree.array("Muon.Charge")
+    charge_mu = tree["Muon.Charge"].array()
 
     ids_e = {int(p.pdgid) for p in Particle.findall(pdg_name="e")}
-    pt_e = tree.array("Electron.PT")
-    eta_e = tree.array("Electron.Eta")
-    phi_e = tree.array("Electron.Phi")
-    charge_e = tree.array("Electron.Charge")
+    # pt_e = tree.array("Electron.PT")
+    pt_e = tree["Electron.PT"].array()
+    # eta_e = tree.array("Electron.Eta")
+    eta_e = tree["Electron.Eta"].array()
+    # phi_e = tree.array("Electron.Phi")
+    phi_e = tree["Electron.Phi"].array()
+    # charge_e = tree.array("Electron.Charge")
+    charge_e = tree["Electron.Charge"].array()
 
     all_particles = []
 
@@ -339,7 +365,7 @@ def _get_particles_leptons(tree, pt_min_e, eta_max_e, pt_min_mu, eta_max_mu):
         )
 
         # Sort by descending pT
-        order = np.argsort(-1.0 * event_pts, axis=None)
+        order = np.argsort(-1.0 * np.array(event_pts), axis=None)
         event_pts = event_pts[order]
         event_etas = event_etas[order]
         event_phis = event_phis[order]
@@ -378,12 +404,18 @@ def _get_particles_leptons(tree, pt_min_e, eta_max_e, pt_min_mu, eta_max_mu):
 def _get_particles_truth_leptons(tree, pt_min_e, eta_max_e, pt_min_mu, eta_max_mu):
     ids_e = {int(p.pdgid) for p in Particle.findall(pdg_name="e")}
     ids_mu = {int(p.pdgid) for p in Particle.findall(pdg_name="mu")}
-    es = tree.array("Particle.E")
-    pts = tree.array("Particle.PT")
-    etas = tree.array("Particle.Eta")
-    phis = tree.array("Particle.Phi")
-    charges = tree.array("Particle.Charge")
-    pdgids = tree.array("Particle.PID")
+    # es = tree.array("Particle.E")
+    es = tree["Particle.E"].array()
+    # pts = tree.array("Particle.PT")
+    pts = tree["Particle.PT"].array()
+    # etas = tree.array("Particle.Eta")
+    etas = tree["Particle.Eta"].array()
+    # phis = tree.array("Particle.Phi")
+    phis = tree["Particle.Phi"].array()
+    # charges = tree.array("Particle.Charge")
+    charges = tree["Particle.Charge"].array()
+    # pdgids = tree.array("Particle.PID")
+    pdgids = tree["Particle.PID"].array()
 
     all_particles = []
 
@@ -412,10 +444,14 @@ def _get_particles_truth_leptons(tree, pt_min_e, eta_max_e, pt_min_mu, eta_max_m
 
 
 def _get_particles_photons(tree, pt_min, eta_max):
-    pts = tree.array("Photon.PT")
-    etas = tree.array("Photon.Eta")
-    phis = tree.array("Photon.Phi")
-    es = tree.array("Photon.E")
+    # pts = tree.array("Photon.PT")
+    pts = tree["Photon.PT"].array()
+    # etas = tree.array("Photon.Eta")
+    etas = tree["Photon.Eta"].array()
+    # phis = tree.array("Photon.Phi")
+    phis = tree["Photon.Phi"].array()
+    # es = tree.array("Photon.E")
+    es = tree["Photon.E"].array()
 
     all_particles = []
 
@@ -438,17 +474,23 @@ def _get_particles_photons(tree, pt_min, eta_max):
 
 
 def _get_particles_jets(tree, pt_min, eta_max):
-    pts = tree.array("Jet.PT")
-    etas = tree.array("Jet.Eta")
-    phis = tree.array("Jet.Phi")
-    masses = tree.array("Jet.Mass")
+    # pts = tree.array("Jet.PT")
+    pts = tree["Jet.PT"].array()
+    # etas = tree.array("Jet.Eta")
+    etas = tree["Jet.Eta"].array()
+    # phis = tree.array("Jet.Phi")
+    phis = tree["Jet.Phi"].array()
+    # masses = tree.array("Jet.Mass")
+    masses = tree["Jet.Mass"].array()
     try:
-        tau_tags = tree.array("Jet.TauTag")
+        # tau_tags = tree.array("Jet.TauTag")
+        tau_tags = tree["Jet.TauTag"].array()
     except:
         logger.warning("Did not find tau-tag information in Delphes ROOT file.")
         tau_tags = [0] * len(pts)
     try:
-        b_tags = tree.array("Jet.BTag")
+        # b_tags = tree.array("Jet.BTag")
+        b_tags = tree["Jet.BTag"].array()
     except:
         logger.warning("Did not find b-tag information in Delphes ROOT file.")
         b_tags = [0] * len(pts)
@@ -477,17 +519,23 @@ def _get_particles_jets(tree, pt_min, eta_max):
 
 
 def _get_particles_truth_jets(tree, pt_min, eta_max):
-    pts = tree.array("GenJet.PT")
-    etas = tree.array("GenJet.Eta")
-    phis = tree.array("GenJet.Phi")
-    masses = tree.array("GenJet.Mass")
+    # pts = tree.array("GenJet.PT")
+    pts = tree["GenJet.PT"].array()
+    # etas = tree.array("GenJet.Eta")
+    etas = tree["GenJet.Eta"].array()
+    # phis = tree.array("GenJet.Phi")
+    phis = tree["GenJet.Phi"].array()
+    # masses = tree.array("GenJet.Mass")
+    masses = tree["GenJet.Mass"].array()
     try:
-        tau_tags = tree.array("GenJet.TauTag")
+        # tau_tags = tree.array("GenJet.TauTag")
+        tau_tags = tree["GenJet.TauTag"].array()
     except:
         logger.warning("Did not find tau-tag information for GenJets in Delphes ROOT file.")
         tau_tags = [0] * len(pts)
     try:
-        b_tags = tree.array("GenJet.BTag")
+        # b_tags = tree.array("GenJet.BTag")
+        b_tags = tree["GenJet.BTag"].array()
     except:
         logger.warning("Did not find b-tag information for GenJets in Delphes ROOT file.")
         b_tags = [0] * len(pts)
@@ -516,8 +564,10 @@ def _get_particles_truth_jets(tree, pt_min, eta_max):
 
 
 def _get_particles_truth_met(tree):
-    mets = tree.array("GenMissingET.MET")
-    phis = tree.array("GenMissingET.Phi")
+    # mets = tree.array("GenMissingET.MET")
+    mets = tree["GenMissingET.MET"].array()
+    # phis = tree.array("GenMissingET.Phi")
+    phis = tree["GenMissingET.Phi"].array()
 
     all_particles = []
 
@@ -535,8 +585,10 @@ def _get_particles_truth_met(tree):
 
 
 def _get_particles_met(tree):
-    mets = tree.array("MissingET.MET")
-    phis = tree.array("MissingET.Phi")
+    # mets = tree.array("MissingET.MET")
+    mets = tree["MissingET.MET"].array()
+    # phis = tree.array("MissingET.Phi")
+    phis = tree["MissingET.Phi"].array()
 
     all_particles = []
 
