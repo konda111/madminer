@@ -456,7 +456,7 @@ class Trainer:
         logging_fn(train_report)
 
         if loss_val is not None:
-            summary = contribution_summary(loss_labels, loss_contributions_train)
+            summary = contribution_summary(loss_labels, loss_contributions_val)
             val_report = f"             val. loss  {loss_val:>8.5f} ({summary})"
             logging_fn(val_report)
 
