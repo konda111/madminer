@@ -498,7 +498,7 @@ class HistoLikelihood(BaseLikelihood):
         # Calculate summary stats
         return summary_function(x)
 
-    def _make_histo_data_weighted(self, summary_function, n_toys, test_split=None):
+    def _make_histo_data_weighted(self, summary_function, n_toys, test_split=0.):
         """
         Low-level function that creates weighted histogram data
         """
@@ -539,7 +539,7 @@ class HistoLikelihood(BaseLikelihood):
         data=None,
         weights_benchmarks=None,
         n_toys=None,
-        test_split=None,
+        test_split=0.,
         summary_function=None,
     ):
         """
