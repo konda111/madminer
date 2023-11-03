@@ -84,8 +84,7 @@ class BaseLikelihood(DataAnalyzer):
             xsec = sum(weights)
         elif weights_benchmarks is None:
             # `sampled` mode: Calculated total cross sections entirely new -- least efficient
-            xsec = self.xsecs(thetas=[theta], nus=[nu], partition="train", generated_close_to=theta)[0][0]
-
+            xsec = self.xsecs(thetas=[theta], nus=[nu], partition="all", generated_close_to=theta)[0][0]
         n_predicted = xsec * luminosity
         if xsec < 0:
             logger.warning("Total cross section is negative (%s pb) at theta=%s)", xsec, theta)
