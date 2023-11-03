@@ -389,7 +389,7 @@ def plot_distributions(
 
         plt.xlim(x_range[0], x_range[1])
         if log:
-            ax.set_yscale("log", nonposy="clip")
+            ax.set_yscale("log", nonpositive="clip")
         else:
             plt.ylim(0.0, None)
 
