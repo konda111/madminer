@@ -130,14 +130,14 @@ class Histo:
             x,
             bins=self.edges,
             range=ranges,
-            normed=False,
+            density=False,
             weights=weights,
         )
         histo_w2, _ = np.histogramdd(
             x,
             bins=self.edges,
             range=ranges,
-            normed=False,
+            density=False,
             weights=None if weights is None else weights**2,
         )
 
