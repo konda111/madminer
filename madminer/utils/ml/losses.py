@@ -61,6 +61,12 @@ def local_score_mse(t_hat, t_true):
     return MSELoss()(t_hat, t_true)
 
 
+def bayesian_loss(model, outputs, t_true):
+    nl = model.neg_log_gauss(outputs, t_true.reshape(-1))
+    kl = model.KL(len(outputs))
+    return nl + kl
+
+
 def flow_nll(log_p_pred, t_pred, t_true):
     return -torch.mean(log_p_pred)
 
