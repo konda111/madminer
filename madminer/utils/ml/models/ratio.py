@@ -463,3 +463,91 @@ class DenseQuadraticMorphingAwareRatioModel(nn.Module):
             return s_hat, log_r_hat, t_hat, x_gradient
 
         return s_hat, log_r_hat, t_hat
+    
+
+## Insert Bayesian Model
+# First of all define the VBL linear Layer
+class VBLinear(nn.Module):
+    # VB -> Variational Bayes
+    
+    __constants__ = ['in_features', 'out_features']
+    in_features: int
+    out_features: int
+    weight: torch.Tensor
+    
+    def __init__( self, in_features, out_features ):
+        super(VBLinear, self).__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.resample = True
+        self.bias = nn.Parameter(torch.Tensor(out_features))
+        self.mu_w = nn.Parameter(torch.Tensor(out_features, in_features))
+        self.logsig2_w = nn.Parameter(torch.Tensor(out_features, in_features))
+        self.random = torch.randn_like(self.logsig2_w)
+        self.reset_parameters()
+        
+    def forward(self, input):
+        if self.resample:
+            self.random = torch.randn_like(self.logsig2_w)
+        s2_w = self.logsig2_w.exp()
+        weight = self.mu_w + s2_w.sqrt() * self.random
+        return nn.functional.linear(input, weight, self.bias) #+ 1e-8
+    
+    def reset_parameters( self ):
+        stdv = 1. / np.sqrt( self.mu_w.size(1) )
+        self.mu_w.data.normal_( 0, stdv )
+        self.logsig2_w.data.zero_().normal_( -9, 0.001 )
+        self.bias.data.zero_()
+        
+    def KL( self, loguniform=False ):
+        kl = 0.5 * ( self.mu_w.pow(2) + self.logsig2_w.exp() - self.logsig2_w - 1 ).sum()
+        return kl
+
+
+##Now define new class filled with VBL layers, not linear + activation ones
+class BayesSingleParameterizedRatioModel(DenseSingleParameterizedRatioModel):
+    """Implements bayesian ratio estimator"""
+
+    def __init__(self, n_observables, n_parameters, n_hidden, activation="tanh", dropout_prob=0.0):
+        super().__init__()
+
+        # Save input
+        self.n_hidden = n_hidden
+        self.activation = get_activation_function(activation)
+        self.dropout_prob = dropout_prob
+
+        # Build network
+        self.layers = nn.ModuleList()
+        self.vb_layers = []
+        n_last = n_observables + n_parameters
+
+        # Hidden layers
+        for n_hidden_units in n_hidden:
+            if self.dropout_prob > 1.0e-9:
+                self.layers.append(nn.Dropout(self.dropout_prob))
+            vb_layer = VBLinear(n_last, n_hidden_units)
+            self.vb_layers.append(vb_layer)
+            self.layers.append(vb_layer)
+            self.layers.append(nn.ReLU())
+            n_last = n_hidden_units
+
+        # Log r layer
+        if self.dropout_prob > 1.0e-9:
+            self.layers.append(nn.Dropout(self.dropout_prob))
+        # we have logr and logsigma(logr) layer, so output.ndim==2
+        vb_layer = VBLinear(n_last, 2)
+        self.vb_layers.append(vb_layer)
+        self.layers.append(vb_layer)
+        
+    def KL(self, training_size):
+        kl = 0
+        for vb_layer in self.vb_layers:
+            kl += vb_layer.KL()
+        return kl / training_size
+    
+    def neg_log_gauss(self, outputs, targets):
+        # output has form [[mu_r, logsigmaSq_r]]
+        mus = outputs[:, 0]
+        logsigma2s = outputs[:, 1]
+        out = torch.pow(mus - targets, 2)/(2 * logsigma2s.exp()) + 1./2. * logsigma2s
+        return torch.mean(out)

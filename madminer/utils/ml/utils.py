@@ -169,10 +169,11 @@ class NumpyDataset(Dataset):
         self.memmap = []
         self.data = []
         self.n = None
-
+        import ipdb; ipdb.set_trace()
         for array in arrays:
             if self.n is None:
                 self.n = array.shape[0]
+
             assert array.shape[0] == self.n
 
             if isinstance(array, np.memmap):
