@@ -46,7 +46,8 @@ def ratio_score_mse(s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true, t
 
 def ratio_xe(s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true, t1_true):
     s_hat = 1.0 / (1.0 + torch.exp(log_r_hat))
-
+    #log_r_hat is the network output itself (model(theta,x))
+    #in the case of morphing is just (model(x))
     return BCELoss()(s_hat, y_true)
 
 
@@ -62,9 +63,16 @@ def local_score_mse(t_hat, t_true):
 
 
 def bayesian_loss(model, outputs, t_true):
+    #import ipdb; ipdb.set_trace()
     nl = model.neg_log_gauss(outputs, t_true.reshape(-1))
     kl = model.KL(len(outputs))
     return nl + kl
+
+def bayesian_carl_loss(model,s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true, t1_true):
+    s_hat = 1.0 / (1.0 + torch.exp(log_r_hat))
+    nl = model.neg_log_gauss(s_hat, y_true)
+    kl = model.KL(len(outputs))
+    return BCELoss()(s_hat, y_true)
 
 
 def flow_nll(log_p_pred, t_pred, t_true):

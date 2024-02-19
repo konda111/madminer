@@ -99,6 +99,7 @@ def get_loss(method, alpha):
         loss_functions = [losses.ratio_xe]
         loss_weights = [1.0]
         loss_labels = ["xe"]
+
     elif method in ["rolr", "rolr2"]:
         loss_functions = [losses.ratio_mse]
         loss_weights = [1.0]
@@ -139,6 +140,10 @@ def get_loss(method, alpha):
         loss_functions = [losses.bayesian_loss]
         loss_weights = [1.0]
         loss_labels = ["bayesian_loss"]
+    elif method == "bayesian_carl":
+        loss_functions = [losses.bayesian_loss]
+        loss_weights = [1.0]
+        loss_labels = ["bayesian_loss"]
     elif method == "nde":
         loss_functions = [losses.flow_nll]
         loss_weights = [1.0]
@@ -169,7 +174,7 @@ class NumpyDataset(Dataset):
         self.memmap = []
         self.data = []
         self.n = None
-        import ipdb; ipdb.set_trace()
+        #import ipdb; ipdb.set_trace()
         for array in arrays:
             if self.n is None:
                 self.n = array.shape[0]

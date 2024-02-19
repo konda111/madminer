@@ -4,5 +4,5 @@ from .likelihood import LikelihoodEstimator
 from .lookup import load_estimator
 from .morphing_aware import MorphingAwareRatioEstimator
 from .morphing_aware import QuadraticMorphingAwareRatioEstimator
-from .parameterized_ratio import ParameterizedRatioEstimator
+from .parameterized_ratio import ParameterizedRatioEstimator, MorphParameterizedRatioEstimator
 from .score import ScoreEstimator, BayesianScoreEstimator

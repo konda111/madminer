@@ -65,6 +65,7 @@ class Trainer:
         self._timer(start="check data")
 
         logger.debug("Initialising training data")
+        #import ipdb; ipdb.set_trace()
         self.check_data(data)
         self.report_data(data)
         if data_val is not None:
@@ -552,7 +553,7 @@ class SingleParameterizedRatioTrainer(Trainer):
 
         if self.calculate_model_score:
             theta.requires_grad = True
-        import ipdb; ipdb.set_trace()
+        #import ipdb; ipdb.set_trace()
         s_hat, log_r_hat, t_hat = self.model(theta, x, track_score=self.calculate_model_score, return_grad_x=False)
         self._timer(stop="fwd: model.forward", start="fwd: check for nans")
         self._check_for_nans("Model output", log_r_hat, s_hat)
@@ -565,6 +566,53 @@ class SingleParameterizedRatioTrainer(Trainer):
         self._timer(stop="fwd: check for nans")
 
         return losses
+    
+class MorphSingleParameterizedRatioTrainer(Trainer):
+    def __init__(self, model, run_on_gpu=True, double_precision=False, n_workers=8):
+        super().__init__(model, run_on_gpu, double_precision, n_workers)
+        self.calculate_model_score = False
+
+    def check_data(self, data):
+        data_keys = list(data.keys())
+        #import ipdb; ipdb.set_trace()
+        if "x" not in data_keys or "y" not in data_keys:
+            raise ValueError("Missing required information 'x', 'theta', or 'y' in training data!")
+
+    def forward_pass(self, batch_data, loss_functions):
+        self._timer(start="fwd: move data")
+        #theta = batch_data["theta"].to(self.device, self.dtype, non_blocking=True)
+        x = batch_data["x"].to(self.device, self.dtype, non_blocking=True)
+        y = batch_data["y"].to(self.device, self.dtype, non_blocking=True)
+
+        try:
+            r_xz = batch_data["r_xz"].to(self.device, self.dtype, non_blocking=True)
+        except KeyError:
+            r_xz = None
+        try:
+            t_xz = batch_data["t_xz"].to(self.device, self.dtype, non_blocking=True)
+        except KeyError:
+            t_xz = None
+
+        self._timer(stop="fwd: move data", start="fwd: check for nans")
+        self._check_for_nans("Training data", x, y)
+        self._check_for_nans("Augmented training data", r_xz, t_xz)
+        self._timer(start="fwd: model.forward", stop="fwd: check for nans")
+
+        #import ipdb; ipdb.set_trace()
+        s_hat, log_r_hat, t_hat = self.model(x, return_grad_x=False)
+        self._timer(stop="fwd: model.forward", start="fwd: check for nans")
+        self._check_for_nans("Model output", log_r_hat, s_hat)
+        self._check_for_nans("Model score", t_hat)
+
+        self._timer(start="fwd: calculate losses", stop="fwd: check for nans")
+        losses = [loss_function(s_hat, log_r_hat, t_hat, None, y, r_xz, t_xz, None) for loss_function in loss_functions]
+        self._timer(stop="fwd: calculate losses", start="fwd: check for nans")
+        self._check_for_nans("Loss", *losses)
+        self._timer(stop="fwd: check for nans")
+
+        return losses
+    
+
 
 class BayesianSingleParameterizedRatioTrainer(SingleParameterizedRatioTrainer):
 
@@ -590,7 +638,7 @@ class BayesianSingleParameterizedRatioTrainer(SingleParameterizedRatioTrainer):
 
         if self.calculate_model_score:
             theta.requires_grad = True
-
+        #import ipdb; ipdb.set_trace()
         s_hat, log_r_hat, t_hat = self.model(theta, x, track_score=self.calculate_model_score, return_grad_x=False)
         self._timer(stop="fwd: model.forward", start="fwd: check for nans")
         self._check_for_nans("Model output", log_r_hat, s_hat)

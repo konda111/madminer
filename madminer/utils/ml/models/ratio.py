@@ -94,6 +94,89 @@ class DenseSingleParameterizedRatioModel(nn.Module):
             self.layers[i] = layer.to(*args, **kwargs)
 
         return self
+    
+
+class MorphDenseSingleParameterizedRatioModel(nn.Module):
+    """Module that implements agnostic parameterized likelihood estimators such as RASCAL or ALICES. Only the
+    numerator of the ratio is parameterized.
+    This is morphing version, so the theta dimension plays no role"""
+
+    def __init__(self, n_observables, n_hidden, activation="tanh", dropout_prob=0.0):
+        super().__init__()
+
+        # Save input
+        self.n_hidden = n_hidden
+        self.activation = get_activation_function(activation)
+        self.dropout_prob = dropout_prob
+
+        # Build network
+        self.layers = nn.ModuleList()
+        # Here n_parameters is not "learned", we fix the theta at the morphing point
+        n_last = n_observables
+
+        # Hidden layers
+        for n_hidden_units in n_hidden:
+            if self.dropout_prob > 1.0e-9:
+                self.layers.append(nn.Dropout(self.dropout_prob))
+            self.layers.append(nn.Linear(n_last, n_hidden_units))
+            n_last = n_hidden_units
+
+        # Log r layer
+        if self.dropout_prob > 1.0e-9:
+            self.layers.append(nn.Dropout(self.dropout_prob))
+        self.append = self.layers.append(nn.Linear(n_last, 1))
+
+    def forward(self, x, track_score=False, return_grad_x=False, create_gradient_graph=True):
+        """Calculates estimated log likelihood ratio and the derived score."""
+
+        # Track gradient wrt x
+        if return_grad_x and not x.requires_grad:
+            x.requires_grad = True
+
+        # log r estimator
+        log_r_hat = x
+
+        for i, layer in enumerate(self.layers):
+            if i > 0:
+                log_r_hat = self.activation(log_r_hat)
+            log_r_hat = layer(log_r_hat)
+
+        # Bayes-optimal s
+        s_hat = 1.0 / (1.0 + torch.exp(log_r_hat))
+
+        # Score t
+        if track_score:
+            (t_hat,) = grad(
+                log_r_hat,
+                grad_outputs=torch.ones_like(log_r_hat.data),
+                # grad_outputs=log_r_hat.data.new(log_r_hat.shape).fill_(1),
+                only_inputs=True,
+                create_graph=create_gradient_graph,
+            )
+        else:
+            t_hat = None
+
+        # Calculate gradient wrt x
+        if return_grad_x:
+            (x_gradient,) = grad(
+                log_r_hat,
+                x,
+                grad_outputs=torch.ones_like(log_r_hat.data),
+                only_inputs=True,
+                create_graph=create_gradient_graph,
+            )
+
+            return s_hat, log_r_hat, t_hat, x_gradient
+
+        return s_hat, log_r_hat, t_hat
+
+    def to(self, *args, **kwargs):
+        self = super().to(*args, **kwargs)
+
+        for i, layer in enumerate(self.layers):
+            self.layers[i] = layer.to(*args, **kwargs)
+
+        return self
 
 
 class DenseDoublyParameterizedRatioModel(nn.Module):
