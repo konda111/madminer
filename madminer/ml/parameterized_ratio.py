@@ -564,7 +564,7 @@ class MorphParameterizedRatioEstimator(ConditionalEstimator):
         memmap=False,
         verbose="some",
         scale_parameters=True,
-        n_workers=8,
+        n_workers=0,
         clip_gradient=None,
         early_stopping_patience=None,
     ):
@@ -607,7 +607,7 @@ class MorphParameterizedRatioEstimator(ConditionalEstimator):
         n_samples = x.shape[0]
         n_observables = x.shape[1]
         #n_parameters = theta.shape[1]
-        logger.info("Found %s samples with %s parameters and %s observables", n_samples, n_observables)
+        logger.info("Found %s samples with %s observables", n_samples, n_observables)
 
         # Limit sample size
         if limit_samplesize is not None and limit_samplesize < n_samples:
@@ -730,8 +730,9 @@ class MorphParameterizedRatioEstimator(ConditionalEstimator):
 
         all_log_r_hat = []
         all_t_hat = []
-        import ipdb; ipdb.set_trace()
-        self.model(x)
+        #import ipdb; ipdb.set_trace()
+        self.model(torch.Tensor(x))
+        return self.model(torch.Tensor(x))[0]
     
     def evaluate_log_likelihood():
         return
