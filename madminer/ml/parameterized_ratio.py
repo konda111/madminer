@@ -220,7 +220,7 @@ class ParameterizedRatioEstimator(ConditionalEstimator):
             logger.info("Found %s separate validation samples", x_val.shape[0])
 
             assert x_val.shape[1] == n_observables
-            import ipdb; ipdb.set_trace()
+            #import ipdb; ipdb.set_trace()
             assert theta_val.shape[1] == n_parameters
             if r_xz is not None:
                 assert r_xz_val is not None, "When providing r_xz and sep. validation data, also provide r_xz_val"
@@ -637,7 +637,7 @@ class MorphParameterizedRatioEstimator(ConditionalEstimator):
         if scale_inputs:
             self.initialize_input_transform(x, overwrite=False)
             x = self._transform_inputs(x)
-            import ipdb; ipdb.set_trace()
+            #import ipdb; ipdb.set_trace()
             if external_validation:
                 x_val = self._transform_inputs(x_val)
         else:
