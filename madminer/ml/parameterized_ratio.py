@@ -542,6 +542,7 @@ class MorphParameterizedRatioEstimator(ConditionalEstimator):
         method,
         x,
         y,
+        theta = None,
         r_xz=None,
         t_xz=None,
         x_val=None,
@@ -636,6 +637,7 @@ class MorphParameterizedRatioEstimator(ConditionalEstimator):
         if scale_inputs:
             self.initialize_input_transform(x, overwrite=False)
             x = self._transform_inputs(x)
+            import ipdb; ipdb.set_trace()
             if external_validation:
                 x_val = self._transform_inputs(x_val)
         else:
