@@ -216,7 +216,10 @@ class Estimator(ABC):
             )
 
         self.n_observables = int(settings["n_observables"])
-        #self.n_parameters = int(settings["n_parameters"])
+        try:
+            self.n_parameters = int(settings["n_parameters"])
+        except:
+            pass
         self.n_hidden = tuple([int(item) for item in settings["n_hidden"]])
         self.activation = str(settings["activation"])
         self.features = settings["features"]

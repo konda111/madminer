@@ -722,19 +722,15 @@ class MorphParameterizedRatioEstimator(ConditionalEstimator):
         # Load training data
         logger.debug("Loading evaluation data")
         x = load_and_check(x)
-
+        #import ipdb; ipdb.set_trace()
         # Scale observables
         x = self._transform_inputs(x)
 
         # Restrict features
         if self.features is not None:
             x = x[:, self.features]
-
-        all_log_r_hat = []
-        all_t_hat = []
         #import ipdb; ipdb.set_trace()
-        self.model(torch.Tensor(x))
-        return self.model(torch.Tensor(x))[0]
+        return self.model(torch.Tensor(x))[1]
     
     def evaluate_log_likelihood():
         return
