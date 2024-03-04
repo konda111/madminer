@@ -216,7 +216,7 @@ class Trainer:
                 batch_size=batch_size,
                 shuffle=True,
                 pin_memory=self.run_on_gpu,
-                num_workers=self.n_workers,
+                num_workers=0,
             )
             val_loader = None
 
@@ -226,14 +226,14 @@ class Trainer:
                 batch_size=batch_size,
                 shuffle=True,
                 pin_memory=self.run_on_gpu,
-                num_workers=self.n_workers,
+                num_workers=0,
             )
             val_loader = DataLoader(
                 dataset_val,
                 batch_size=batch_size,
                 shuffle=True,
                 pin_memory=self.run_on_gpu,
-                num_workers=self.n_workers,
+                num_workers=0,
             )
 
         else:
@@ -253,14 +253,14 @@ class Trainer:
                 sampler=train_sampler,
                 batch_size=batch_size,
                 pin_memory=self.run_on_gpu,
-                num_workers=self.n_workers,
+                num_workers=0,
             )
             val_loader = DataLoader(
                 dataset,
                 sampler=val_sampler,
                 batch_size=batch_size,
                 pin_memory=self.run_on_gpu,
-                num_workers=self.n_workers,
+                num_workers=0,
             )
 
         return train_loader, val_loader
