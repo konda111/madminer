@@ -265,10 +265,53 @@ def evaluate_unc_local_score_model(model, xs=None, run_on_gpu=True, double_preci
     t_hat = t_hat.detach().numpy()
     t_hat = t_hat.reshape(t_hat.shape[0], 2)
     t_hat_mu = t_hat[:, 0]
-    t_hat_sig2 = np.exp(t_hat[:, 1])
+    t_hat_sig = np.exp(.5*t_hat[:, 1])
 
     if return_grad_x:
         x_gradients = x_gradients.detach().numpy()
-        return t_hat_mu, t_hat_sig2, x_gradients
+        return t_hat_mu, t_hat_sig, x_gradients
 
-    return t_hat_mu, t_hat_sig2
+    return t_hat_mu, t_hat_sig
+
+def evaluate_repulsive_ensemble_local_score_model(model, xs=None, run_on_gpu=True, double_precision=False, return_grad_x=False):
+    # CPU or GPU?
+    run_on_gpu = run_on_gpu and torch.cuda.is_available()
+    device = torch.device("cuda" if run_on_gpu else "cpu")
+    dtype = torch.double if double_precision else torch.float
+
+    # Prepare data
+    xs = torch.stack([tensor(i) for i in xs])
+    x = xs.clone().detach()
+    x = x[None,:].expand(model.n_channels,-1,-1)
+
+    model = model.to(device, dtype)
+    x = x.to(device, dtype)
+
+    # Evaluate networks
+    if return_grad_x:
+        model.eval()
+        t_hat, x_gradients = model(x, return_grad_x=True)
+    else:
+        with torch.no_grad():
+            model.eval()
+            t_hat = model(x)
+        x_gradients = None
+
+    # Copy back tensors to CPU
+    if run_on_gpu:
+        t_hat = t_hat.cpu()
+        if x_gradients is not None:
+            x_gradients = x_gradients.cpu()
+
+    # Get data and return
+    t_hat = t_hat.detach()
+    # t_hat = t_hat.reshape(t_hat.shape[0], 2)
+    output = t_hat[:, :, 0]
+    print(f"output shape: {output.shape}")
+    t_hat_mu, t_hat_std = output.mean(dim=0).numpy(), output.std(dim=0).numpy()
+
+    if return_grad_x:
+        x_gradients = x_gradients.detach().numpy()
+        return t_hat_mu, t_hat_std, x_gradients
+
+    return t_hat_mu, t_hat_std

@@ -2,6 +2,7 @@ import logging
 
 import numpy as np
 import torch
+import math
 from torch.nn import BCELoss
 from torch.nn import MSELoss
 
@@ -66,6 +67,23 @@ def heteroskedastic_loss(outputs, t_true):
     logsigma2s = outputs[:, 1]
     out = torch.pow(mus - t_true.reshape(-1), 2)/(2 * logsigma2s.exp()) + 1/2. * logsigma2s
     return torch.mean(out)
+
+
+def repulsive_ensemble_loss(outputs, t_true):
+    # RBF kernel with median estimator
+    def kernel(x, y):
+        channels = len(x)
+        dnorm2 = (x.reshape(channels,1,-1) - y.reshape(1,channels,-1)).square().sum(dim=2)
+        sigma = torch.quantile(dnorm2.detach(), 0.5) / (2 * math.log(channels + 1))
+        return torch.exp(- dnorm2 / (2*sigma))
+    # first compute heteroskedastic regression loss
+    mus = outputs[:, :, 0]
+    logsigma2s = outputs[:, :, 1]
+    reg = torch.pow(mus - t_true.reshape(mus.shape), 2)/(2 * logsigma2s.exp()) + 1/2. * logsigma2s
+    # repulsive ensemble loss
+    k = kernel(reg, reg.detach())
+    reg_mean, reg_std = reg.mean(dim=1), reg.std(dim=1)
+    return torch.sum(reg_mean + (k.sum(dim=1) / k.detach().sum(dim=1) - 1) / len(mus), dim=0)
 
 
 def bayesian_loss(model, outputs, t_true):

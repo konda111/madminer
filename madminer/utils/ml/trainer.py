@@ -664,8 +664,43 @@ class LocalScoreTrainer(Trainer):
 
         return losses
 
+class RepulsiveEnsembeLocalScoreTrainer(Trainer):
+    def check_data(self, data):
+        data_keys = list(data.keys())
+        if "x" not in data_keys or "t_xz" not in data_keys:
+            raise ValueError("Missing required information 'x' or 't_xz' in training data!")
 
-class LocalBayesianScoreTrainer(LocalScoreTrainer):
+        for key in data_keys:
+            if key not in ["x", "t_xz"]:
+                logger.warning("Unknown key %s in training data! Ignoring it.", key)
+
+    def forward_pass(self, batch_data, loss_functions):
+        self._timer(start="fwd: move data")
+        n_channels = self.model.n_channels
+        x = batch_data["x"][None,:].clone().detach()
+        x = x.expand(n_channels,-1,-1)
+        x = x.to(self.device, self.dtype, non_blocking=True)
+        t_xz = batch_data["t_xz"][None,:].clone().detach()
+        t_xz = t_xz.expand(n_channels,-1,-1)
+        self._timer(stop="fwd: move data", start="fwd: check for nans")
+        self._check_for_nans("Training data", x)
+        self._check_for_nans("Augmented training data", t_xz)
+
+        self._timer(start="fwd: model.forward", stop="fwd: check for nans")
+        t_hat = self.model(x)
+        self._timer(stop="fwd: model.forward", start="fwd: check for nans")
+        self._check_for_nans("Model output", t_hat)
+
+        self._timer(start="fwd: calculate losses", stop="fwd: check for nans")
+        losses = [loss_function(t_hat, t_xz) for loss_function in loss_functions]
+        self._timer(stop="fwd: calculate losses", start="fwd: check for nans")
+        self._check_for_nans("Loss", *losses)
+        self._timer(stop="fwd: check for nans")
+
+        return losses
+
+
+class BayesianLocalScoreTrainer(LocalScoreTrainer):
 
     def forward_pass(self, batch_data, loss_functions):
         self._timer(start="fwd: move data")

@@ -30,11 +30,20 @@ class Estimator(ABC):
     Please see the tutorial for a detailed walk-through.
     """
 
-    def __init__(self, features=None, n_hidden=(100,), activation="tanh", dropout_prob=0.0):
+    def __init__(
+        self, 
+        features=None, 
+        n_hidden=(100,), 
+        activation="tanh", 
+        dropout_prob=0.0,
+        n_channels=100
+    ):
         self.features = features
         self.n_hidden = n_hidden
         self.activation = activation
         self.dropout_prob = dropout_prob
+        # n_channels only relevant for repulsive ensemble
+        self.n_channels = n_channels
 
         self.model = None
         self.n_observables = None
