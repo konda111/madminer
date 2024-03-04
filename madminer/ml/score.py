@@ -6,8 +6,8 @@ import numpy as np
 
 from .base import Estimator
 from .base import TheresAGoodReasonThisDoesntWork
-from ..utils.ml.eval import evaluate_local_score_model, evaluate_local_bayesian_score_model
-from ..utils.ml.models.score import DenseLocalScoreModel, BayesianDenseLocalScoreModel
+from ..utils.ml.eval import evaluate_local_score_model, evaluate_unc_local_score_model
+from ..utils.ml.models.score import DenseLocalScoreModel, HeteroSkedasticDenseLocalScoreModel, BayesianDenseLocalScoreModel
 from ..utils.ml.trainer import LocalScoreTrainer, LocalBayesianScoreTrainer
 from ..utils.ml.utils import get_optimizer
 from ..utils.ml.utils import get_loss
@@ -135,7 +135,7 @@ class ScoreEstimator(Estimator):
             Training and validation losses from LocalScoreTrainer.train
         """
 
-        if method not in ["sally", "sallino"]:
+        if method not in ["sally", "sallino", "heteroskedastic_sally"]:
             logger.warning("Method %s not allowed for score estimators. Using 'sally' instead.", method)
             method = "sally"
 
@@ -459,6 +459,92 @@ class ScoreEstimator(Estimator):
             logger.warning("Did not find entry nuisance_mode_default in saved model, using default 'keep'.")
 
 
+class HeteroskedasticScoreEstimator(ScoreEstimator):
+    def evaluate_score(self, x, theta=None, nuisance_mode="auto"):
+        """
+        Evaluates the score.
+
+        Parameters
+        ----------
+        x : str or ndarray
+            Observations, or filename of a pickled numpy array.
+
+        theta: None or ndarray, optional
+            Has no effect for ScoreEstimator. Introduced just for conformity with other Estimators.
+
+        nuisance_mode : {"auto", "keep", "profile", "project"}
+            Decides how nuisance parameters are treated. If nuisance_mode is "auto", the returned score is the (n+k)-
+            dimensional score in the space of n parameters of interest and k nuisance parameters if `set_profiling`
+            has not been called, and the n-dimensional profiled score in the space of the parameters of interest
+            if it has been called. For "keep", the returned score is always (n+k)-dimensional. For "profile", it is
+            the n-dimensional profiled score. For "project", it is the n-dimensional projected score, i.e. ignoring
+            the nuisance parameters.
+
+        Returns
+        -------
+        score : ndarray
+            Estimated score with shape `(n_observations, n_parameters)`.
+        """
+
+        if self.model is None:
+            raise ValueError("No model -- train or load model before evaluating it!")
+
+        if nuisance_mode == "auto":
+            logger.debug("Using nuisance mode %s", self.nuisance_mode_default)
+            nuisance_mode = self.nuisance_mode_default
+
+        # Load training data
+        if isinstance(x, str):
+            logger.debug("Loading evaluation data")
+        x = load_and_check(x)
+
+        # Scale observables
+        x = self._transform_inputs(x)
+
+        # Restrict features
+        if self.features is not None:
+            x = x[:, self.features]
+
+        # Evaluation
+        logger.debug("Starting score evaluation")
+        t_hat = evaluate_unc_local_score_model(model=self.model, xs=x)
+
+        # Treatment of nuisance parameters
+        if nuisance_mode == "keep":
+            logger.debug("Keeping nuisance parameter in score")
+
+        elif nuisance_mode == "project":
+            if self.nuisance_project_matrix is None:
+                raise ValueError(
+                    "evaluate_score() was called with nuisance_mode = project, but nuisance parameters "
+                    "have not been set up yet. Please call set_nuisance() first!"
+                )
+            logger.debug("Projecting nuisance parameter from score")
+            t_hat = np.einsum("ij,xj->xi", self.nuisance_project_matrix, t_hat)
+
+        elif nuisance_mode == "profile":
+            if self.nuisance_profile_matrix is None:
+                raise ValueError(
+                    "evaluate_score() was called with nuisance_mode = profile, but nuisance parameters "
+                    "have not been set up yet. Please call set_nuisance() first!"
+                )
+            logger.debug("Profiling nuisance parameter from score")
+            t_hat = np.einsum("ij,xj->xi", self.nuisance_profile_matrix, t_hat)
+
+        else:
+            raise ValueError(f"Unknown nuisance_mode {nuisance_mode}")
+
+        return t_hat
+    
+    def _create_model(self):
+        self.model = HeteroSkedasticDenseLocalScoreModel(
+            n_observables=self.n_observables,
+            n_parameters=self.n_parameters,
+            n_hidden=self.n_hidden,
+            activation=self.activation,
+            dropout_prob=self.dropout_prob,
+        )
+        
 class BayesianScoreEstimator(ScoreEstimator):
     def train(
         self,
@@ -719,7 +805,7 @@ class BayesianScoreEstimator(ScoreEstimator):
 
         # Evaluation
         logger.debug("Starting score evaluation")
-        t_hat = evaluate_local_bayesian_score_model(model=self.model, xs=x)
+        t_hat = evaluate_unc_local_score_model(model=self.model, xs=x)
 
         # Treatment of nuisance parameters
         if nuisance_mode == "keep":

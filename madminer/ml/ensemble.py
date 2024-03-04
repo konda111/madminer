@@ -263,7 +263,7 @@ class Ensemble:
 
         return mean, covariance
 
-    def evaluate_score(self, estimator_weights=None, calculate_covariance=False, **kwargs):
+    def evaluate_score(self, estimator_weights=None, calculate_covariance=False, calculate_sigma=False, **kwargs):
         """
         Estimates the score from each estimator and returns the ensemble mean (and, if
         calculate_covariance is True, the covariance between them).
@@ -315,7 +315,12 @@ class Ensemble:
         else:
             covariance = None
 
-        return mean, covariance
+        if calculate_sigma:
+            sigma = np.std(predictions, axis=0)
+        else:  
+            sigma = None
+        
+        return mean, covariance, sigma
 
     def calculate_fisher_information(
         self,

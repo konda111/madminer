@@ -72,6 +72,42 @@ class DenseLocalScoreModel(nn.Module):
             self.layers[i] = layer.to(*args, **kwargs)
 
         return self
+    
+class HeteroSkedasticDenseLocalScoreModel(DenseLocalScoreModel):
+    """Module that implements local score estimators for methods like SALLY and SALLINO, or the calculation
+    of Fisher information matrices. Modified version of DenseLocalScoreModel using heteroskedastic loss."""
+
+    def __init__(self, n_observables, n_parameters, n_hidden, activation="tanh", dropout_prob=0.0):
+        super().__init__(
+            n_observables,
+            n_parameters,
+            n_hidden,
+            activation=activation,
+            dropout_prob=dropout_prob
+        )
+
+        # Save input
+        self.n_hidden = n_hidden
+        self.activation = get_activation_function(activation)
+        self.dropout_prob = dropout_prob
+
+        # Build network
+        self.layers = nn.ModuleList()
+        n_last = n_observables
+
+        # Hidden layers
+        for n_hidden_units in n_hidden:
+            if self.dropout_prob > 1.0e-9:
+                self.layers.append(nn.Dropout(self.dropout_prob))
+            self.layers.append(nn.Linear(n_last, n_hidden_units))
+            n_last = n_hidden_units
+
+        # Log r layer
+        if self.dropout_prob > 1.0e-9:
+            self.layers.append(nn.Dropout(self.dropout_prob))
+        # output is a vector of size 2*n_parameters
+        # saving the logr mean and width for each parameter sequentially (mu_1, sigma_1, mu_2, sigma_2, ...)
+        self.layers.append(nn.Linear(n_last, 2*n_parameters))
 
 
 class VBLinear(nn.Module):

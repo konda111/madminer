@@ -233,8 +233,7 @@ def evaluate_local_score_model(model, xs=None, run_on_gpu=True, double_precision
 
     return t_hat
 
-
-def evaluate_local_bayesian_score_model(model, xs=None, run_on_gpu=True, double_precision=False, return_grad_x=False):
+def evaluate_unc_local_score_model(model, xs=None, run_on_gpu=True, double_precision=False, return_grad_x=False):
     # CPU or GPU?
     run_on_gpu = run_on_gpu and torch.cuda.is_available()
     device = torch.device("cuda" if run_on_gpu else "cpu")

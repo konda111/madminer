@@ -135,6 +135,10 @@ def get_loss(method, alpha):
         loss_functions = [losses.local_score_mse]
         loss_weights = [1.0]
         loss_labels = ["mse_score"]
+    elif method == "heteroskedastic_sally":
+        loss_functions = [losses.heteroskedastic_loss]
+        loss_weights = [1.0]
+        loss_labels = ["heteroskedastic_loss"]
     elif method == "bayesian_sally":
         loss_functions = [losses.bayesian_loss]
         loss_weights = [1.0]

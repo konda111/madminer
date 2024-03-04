@@ -61,6 +61,13 @@ def local_score_mse(t_hat, t_true):
     return MSELoss()(t_hat, t_true)
 
 
+def heteroskedastic_loss(outputs, t_true):
+    mus = outputs[:, 0]
+    logsigma2s = outputs[:, 1]
+    out = torch.pow(mus - t_true.reshape(-1), 2)/(2 * logsigma2s.exp()) + 1/2. * logsigma2s
+    return torch.mean(out)
+
+
 def bayesian_loss(model, outputs, t_true):
     nl = model.neg_log_gauss(outputs, t_true.reshape(-1))
     kl = model.KL(len(outputs))
