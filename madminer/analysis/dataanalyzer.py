@@ -660,7 +660,7 @@ class DataAnalyzer:
         # Effect of nuisance parameters
         nuisance_factors = self._calculate_nuisance_factors(nus, benchmark_weights)
         weights = nuisance_factors * weights_nom
-
+        #import ipdb; ipdb.set_trace()
         return weights
 
     def _weight_gradients(

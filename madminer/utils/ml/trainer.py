@@ -217,7 +217,8 @@ class Trainer:
                 batch_size=batch_size,
                 shuffle=True,
                 pin_memory=self.run_on_gpu,
-                num_workers=self.n_workers,
+                #num_workers=self.n_workers,
+                num_workers=0
             )
             val_loader = None
 
@@ -227,14 +228,16 @@ class Trainer:
                 batch_size=batch_size,
                 shuffle=True,
                 pin_memory=self.run_on_gpu,
-                num_workers=self.n_workers,
+                #num_workers=self.n_workers,
+                num_workers=0
             )
             val_loader = DataLoader(
                 dataset_val,
                 batch_size=batch_size,
                 shuffle=True,
                 pin_memory=self.run_on_gpu,
-                num_workers=self.n_workers,
+                #num_workers=self.n_workers,
+                num_workers=0
             )
 
         else:
@@ -254,14 +257,16 @@ class Trainer:
                 sampler=train_sampler,
                 batch_size=batch_size,
                 pin_memory=self.run_on_gpu,
-                num_workers=self.n_workers,
+                #num_workers=self.n_workers,
+                num_workers=0
             )
             val_loader = DataLoader(
                 dataset,
                 sampler=val_sampler,
                 batch_size=batch_size,
                 pin_memory=self.run_on_gpu,
-                num_workers=self.n_workers,
+                #num_workers=self.n_workers,
+                num_workers=0
             )
 
         return train_loader, val_loader
@@ -574,13 +579,11 @@ class MorphSingleParameterizedRatioTrainer(Trainer):
 
     def check_data(self, data):
         data_keys = list(data.keys())
-        #import ipdb; ipdb.set_trace()
         if "x" not in data_keys or "y" not in data_keys:
             raise ValueError("Missing required information 'x', 'theta', or 'y' in training data!")
 
     def forward_pass(self, batch_data, loss_functions):
         self._timer(start="fwd: move data")
-        #theta = batch_data["theta"].to(self.device, self.dtype, non_blocking=True)
         x = batch_data["x"].to(self.device, self.dtype, non_blocking=True)
         y = batch_data["y"].to(self.device, self.dtype, non_blocking=True)
 
@@ -598,7 +601,7 @@ class MorphSingleParameterizedRatioTrainer(Trainer):
         self._check_for_nans("Augmented training data", r_xz, t_xz)
         self._timer(start="fwd: model.forward", stop="fwd: check for nans")
 
-        #import ipdb; ipdb.set_trace()
+        import ipdb; ipdb.set_trace()
         s_hat, log_r_hat, t_hat = self.model(x, return_grad_x=False)
         self._timer(stop="fwd: model.forward", start="fwd: check for nans")
         self._check_for_nans("Model output", log_r_hat, s_hat)

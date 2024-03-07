@@ -1600,6 +1600,7 @@ class SampleAugmenter(DataAnalyzer):
 
                 # Weights
                 weights = self._weights(thetas, nus, weights_benchmarks_batch, theta_matrices)
+                #import ipdb; ipdb.set_trace()
                 if needs_gradients:
                     weight_gradients = self._weight_gradients(
                         thetas,
@@ -1614,7 +1615,7 @@ class SampleAugmenter(DataAnalyzer):
 
                 # Evaluate p(x | sampling theta)
                 p_sampling = weights[sampling_index] / xsecs[sampling_index]  # Shape: (n_batch_size,)
-
+                #import ipdb; ipdb.set_trace()
                 # Handle negative weights (should be rare)
                 n_negative_weights = np.sum(p_sampling < 0.0)
                 if n_negative_weights > 0:
@@ -1709,6 +1710,7 @@ class SampleAugmenter(DataAnalyzer):
         for definition in augmented_data_definitions:
             if definition[0] == "ratio":
                 _, i_num, i_den = definition
+                #import ipdb; ipdb.set_trace()
                 ratio = (weights[i_num] / xsecs[i_num]) / (weights[i_den] / xsecs[i_den])
                 ratio = ratio.reshape((-1, 1))  # (n_samples, 1)
                 augmented_data.append(ratio)

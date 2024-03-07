@@ -542,7 +542,6 @@ class MorphParameterizedRatioEstimator(ConditionalEstimator):
         method,
         x,
         y,
-        theta = None,
         r_xz=None,
         t_xz=None,
         x_val=None,
@@ -550,7 +549,6 @@ class MorphParameterizedRatioEstimator(ConditionalEstimator):
         theta_val=None,
         r_xz_val=None,
         t_xz_val=None,
-        alpha=1.0,
         optimizer="amsgrad",
         n_epochs=50,
         batch_size=128,
@@ -570,12 +568,16 @@ class MorphParameterizedRatioEstimator(ConditionalEstimator):
         early_stopping_patience=None,
     ):
         """
+        A neural estimator of the likelihood ratio as a function of the observation x ONLY. 
+        The reference (denominator) hypothesis is kept fixed at some reference value 
+        and NOT modeled by the network.
         """
 
         logger.info("Starting training")
         logger.info("  Method:                 %s", method)
         if method in ["cascal", "rascal", "alices"]:
-            logger.info("  alpha:                  %s", alpha)
+            logger.info(" Method not yet implemented for morphing aware. Using Alice instead")
+            method = "alice"
         logger.info("  Batch size:             %s", batch_size)
         logger.info("  Optimizer:              %s", optimizer)
         logger.info("  Epochs:                 %s", n_epochs)
@@ -595,11 +597,11 @@ class MorphParameterizedRatioEstimator(ConditionalEstimator):
         # Load training data
         logger.info("Loading training data")
         memmap_threshold = 1.0 if memmap else None
-        #import ipdb; ipdb.set_trace()
 
         x = load_and_check(x, memmap_files_larger_than_gb=memmap_threshold)
         y = load_and_check(y, memmap_files_larger_than_gb=memmap_threshold)
         r_xz = load_and_check(r_xz, memmap_files_larger_than_gb=memmap_threshold)
+        #t_xz is useless for now. Just keep it since it does not change the functioning
         t_xz = load_and_check(t_xz, memmap_files_larger_than_gb=memmap_threshold)
 
         self._check_required_data(method, r_xz, t_xz)
@@ -607,13 +609,13 @@ class MorphParameterizedRatioEstimator(ConditionalEstimator):
         # Infer dimensions of problem
         n_samples = x.shape[0]
         n_observables = x.shape[1]
-        #n_parameters = theta.shape[1]
         logger.info("Found %s samples with %s observables", n_samples, n_observables)
 
         # Limit sample size
+        # TODO: 
         if limit_samplesize is not None and limit_samplesize < n_samples:
             logger.info("Only using %s of %s training samples", limit_samplesize, n_samples)
-            x, theta, y, r_xz, t_xz = restrict_samplesize(limit_samplesize, x, theta, y, r_xz, t_xz)
+            x, y, r_xz = restrict_samplesize(limit_samplesize, x, y, r_xz)
 
         # Validation data
         external_validation = x_val is not None and y_val is not None and theta_val is not None
@@ -627,7 +629,6 @@ class MorphParameterizedRatioEstimator(ConditionalEstimator):
             logger.info("Found %s separate validation samples", x_val.shape[0])
 
             assert x_val.shape[1] == n_observables
-            #import ipdb; ipdb.set_trace()
             if r_xz is not None:
                 assert r_xz_val is not None, "When providing r_xz and sep. validation data, also provide r_xz_val"
             if t_xz is not None:
@@ -643,14 +644,6 @@ class MorphParameterizedRatioEstimator(ConditionalEstimator):
         else:
             self.initialize_input_transform(x, False, overwrite=False)
 
-        # Scale parameters
-        if scale_parameters:
-            logger.info("Rescaling parameters")
-            t_xz = self._transform_score(t_xz, inverse=False)
-            if external_validation:
-                t_xz_val = self._transform_score(t_xz_val, inverse=False)
-        else:
-            self.initialize_parameter_transform(theta, False)
 
         # Shuffle labels
         if shuffle_labels:
@@ -684,7 +677,8 @@ class MorphParameterizedRatioEstimator(ConditionalEstimator):
             self._create_model()
 
         # Losses
-        loss_functions, loss_labels, loss_weights = get_loss(method, alpha)
+        #TODO: alpha is set to None since it makes no sense for now; there is no score based method
+        loss_functions, loss_labels, loss_weights = get_loss(method, alpha=None)
 
         # Optimizer
         opt, opt_kwargs = get_optimizer(optimizer, nesterov_momentum)

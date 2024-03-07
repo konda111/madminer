@@ -24,6 +24,7 @@ class DenseSingleParameterizedRatioModel(nn.Module):
 
         # Build network
         self.layers = nn.ModuleList()
+        #import ipdb; ipdb.set_trace()
         n_last = n_observables + n_parameters
 
         # Hidden layers

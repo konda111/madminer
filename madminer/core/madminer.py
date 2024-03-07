@@ -264,7 +264,10 @@ class MadMiner:
         self.benchmarks = OrderedDict()
         self.default_benchmark = None
 
+        import ipdb; ipdb.set_trace()
+
         if isinstance(benchmarks, dict):
+            import ipdb; ipdb.set_trace()
             for name, values in benchmarks.items():
                 self.add_benchmark(values, name, verbose=verbose)
         elif isinstance(benchmarks, list):
@@ -370,6 +373,74 @@ class MadMiner:
             n_predefined_benchmarks,
             morpher.n_components - n_predefined_benchmarks,
         )
+
+    def cs_set_morphing(
+        self,
+        max_overall_power=4
+    ):
+        """
+        Function that sets the optimal morphing for the reduced cross sections.
+        Parameters
+        ----------
+        max_overall_power: value of degree of polynomial of EFT
+
+        Returns
+        -------
+            None
+
+        """
+
+        logger.info("Optimizing basis for morphing the cross sections only")
+
+        morpher = PhysicsMorpher(parameters_from_madminer=self.parameters)
+        morpher.find_components(max_overall_power)
+
+        basis = morpher.optimize_basis_cs()
+
+        basis.update(self.benchmarks)
+
+        self.set_benchmarks(basis, verbose=False)
+        self.morpher = morpher
+        self.export_morphing = True
+
+        logger.info(
+            "Testing out"
+        )
+
+    def ratio_set_morphing(
+        self,
+        reduced_cs,
+        max_overall_power=4
+    ):
+        """
+        Function that sets the optimal morphing for the reduced cross sections.
+        Parameters
+        ----------
+        max_overall_power: value of degree of polynomial of EFT
+
+        Returns
+        -------
+            None
+
+        """
+
+        logger.info("Optimizing basis for morphing the cross sections only")
+        #TODO: solve this thing that I need to call again the previous morpher
+        morpher = self.morpher
+        morpher.find_components(max_overall_power)
+
+        basis = morpher.optimize_basis_ratio(reduced_cs)
+
+        basis.update(self.benchmarks)
+        import ipdb; ipdb.set_trace()
+        self.set_benchmarks(basis, verbose=False)
+        self.morpher = morpher
+        self.export_morphing = True
+
+        logger.info(
+            "Testing out"
+        )
+
 
     def finite_differences(self, epsilon=0.01):
         """
@@ -706,7 +777,7 @@ class MadMiner:
         python_executable=None,
     ):
         """
-        High-level function that creates the the MadGraph process, all required cards, and prepares or runs the event
+        High-level function that creates the MadGraph process, all required cards, and prepares or runs the event
         generation for one combination of cards.
 
         If `only_prepare_scripts=True`, the event generation is not run
@@ -1231,3 +1302,4 @@ class MadMiner:
                 mg_process_directory,
                 run_name,
             )
+        

@@ -214,7 +214,7 @@ class Estimator(ABC):
                 "Can't find estimator type information in file. Maybe this file was created with"
                 " an incompatible MadMiner version < v0.3.0?"
             )
-
+        #import ipdb; ipdb.set_trace()
         self.n_observables = int(settings["n_observables"])
         try:
             self.n_parameters = int(settings["n_parameters"])

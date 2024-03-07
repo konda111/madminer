@@ -51,6 +51,7 @@ def _process_event(
     else:
         parse_func = _parse_txt_events
     particles, weights, global_event_data = parse_func(event, sampling_benchmark)
+    #import ipdb; ipdb.set_trace()
     n_events_with_negative_weights, observations, pass_all, weight_names_all_events, weights = _parse_event(
         avg_efficiencies,
         cuts,
@@ -249,6 +250,7 @@ def parse_lhe_file(
 
                 # Parse event
                 particles, weights, global_event_data = _parse_xml_event(event, sampling_benchmark)
+                #import ipdb; ipdb.set_trace()
                 n_events_with_negative_weights, observations, pass_all, weight_names_all_events, weights = _parse_event(
                     avg_efficiencies,
                     cuts,
@@ -269,7 +271,6 @@ def parse_lhe_file(
                     global_event_data=global_event_data,
                     print_event=i_event if i_event % 10000 == 0 else 0,
                 )
-
                 # Skip events that fail anything
                 if not pass_all:
                     continue
@@ -277,7 +278,6 @@ def parse_lhe_file(
                 # Store results
                 observations_all_events.append(observations)
                 weights_all_events.append(weights)
-
         # Option two: text parsing
         else:
             # Iterate over events in LHE file
@@ -378,7 +378,7 @@ def parse_lhe_file(
                 output_weights[nuisance_benchmark1] = processing * weights_all_events[weight_name1]
             else:
                 raise RuntimeError(f"Unknown nuisance processing {processing}")
-
+    #import ipdb; ipdb.set_trace()
     return observations_dict, output_weights
 
 
@@ -435,7 +435,8 @@ def _parse_event(
     if weight_names_all_events is None:
         weight_names_all_events = list(weights.keys())
     weights = np.array(list(weights.values()))
-
+    
+    #import ipdb; ipdb.set_trace()
     # Apply smearing
     particles_smeared = _smear_particles(
         particles, energy_resolutions, pt_resolutions, eta_resolutions, phi_resolutions
@@ -491,6 +492,7 @@ def _parse_event(
                 "passes" if pass_all else "FAILS",
             )
         )
+    #import ipdb; ipdb.set_trace()
     return n_events_with_negative_weights, observations, pass_all, weight_names_all_events, weights
 
 
@@ -823,6 +825,7 @@ def _parse_xml_event(event, sampling_benchmark):
     assert tag_line is not None
     global_event_data["n_particles"] = float(tag_line[0])
     weights[sampling_benchmark] = float(tag_line[2])
+    #import ipdb; ipdb.set_trace()
     global_event_data["scale"] = float(tag_line[3])
     global_event_data["alpha_qed"] = float(tag_line[4])
     global_event_data["alpha_qcd"] = float(tag_line[5])
@@ -849,6 +852,7 @@ def _parse_xml_event(event, sampling_benchmark):
     # Weights
     if event.find("rwgt") is not None:
         for weight in event.find("rwgt").findall("wgt"):
+            #import ipdb; ipdb.set_trace()
             weight_id, weight_value = weight.attrib["id"], float(weight.text)
             weights[weight_id] = weight_value
 
