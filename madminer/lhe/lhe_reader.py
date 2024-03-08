@@ -104,6 +104,7 @@ class LHEReader:
             _,
             _,
             _,
+            _,
             self.systematics,
             _,
             _,
@@ -808,6 +809,6 @@ class LHEReader:
             num_signal_events=self.signal_events_per_benchmark,
             num_background_events=self.background_events,
         )
-
-        if shuffle:
-            combine_and_shuffle([filename_out], filename_out)
+        # TODO: commented out this thing for now
+        #if shuffle:
+            #combine_and_shuffle([filename_out], filename_out)

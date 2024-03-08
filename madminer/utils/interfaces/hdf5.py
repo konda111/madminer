@@ -702,7 +702,10 @@ def _load_morphing(file_name: str) -> Tuple[np.ndarray, np.ndarray]:
         try:
             morphing_components = file["morphing/components"][()]
             cs_basis = file["morphing/cs_basis"][()]
-            reduced_cs = file["morphing/reduced_cs"][()]
+            try:
+                reduced_cs = file["morphing/reduced_cs"][()]
+            except:
+                reduced_cs = None
         except KeyError:
             logger.info("HDF5 file does not contain morphing information")
         else:
@@ -734,7 +737,7 @@ def _save_morphing(
         None
     """
 
-    if morphing_components is None or cs_basis is None or reduced_cs is None:
+    if morphing_components is None or cs_basis is None:
         return
 
     # Append if file exists, otherwise create
@@ -744,7 +747,10 @@ def _save_morphing(
                 del file["morphing"]
         file.create_dataset("morphing/components", data=morphing_components.astype(int))
         file.create_dataset("morphing/cs_basis", data=cs_basis.astype(float))
-        file.create_dataset("morphing/reduced_cs", data=reduced_cs.astype(float))
+        try:
+            file.create_dataset("morphing/reduced_cs", data=reduced_cs.astype(float))
+        except:
+            pass
 
 
 def _load_nuisance_params(file_name: str) -> Dict[str, NuisanceParameter]:
