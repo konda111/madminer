@@ -1024,10 +1024,8 @@ class PhysicsMorpher:
         best_basis = best_basis.reshape(n_benchmark_points+1,len(self.components[0]))
         self.basis = best_basis
         self.cs_basis = best_basis
-        import ipdb; ipdb.set_trace()
         # GoldMine output
         # A bit hardcoded here but I want to fix as first benchmark point the standard model
-
         if self.use_madminer_interface:
             basis_madminer = OrderedDict()
 
@@ -1055,9 +1053,9 @@ class PhysicsMorpher:
         for j in range(n_benchmark_points):
             matrix.append([np.prod(basis[j]**c)for c in comps[1:len(comps)]])
         return np.linalg.cond(matrix)
+    
     def optimize_basis_ratio(
         self,
-        reduced_cross_sections
     ):
         """
 
@@ -1077,18 +1075,15 @@ class PhysicsMorpher:
         # Define in here the morphing 
         # Save
         # Propose a basis, then minimize with scipy
-        self.reduced_cs = reduced_cross_sections
         n_benchmark_points = len(self.components)-1
         basis_proposal = np.random.uniform(-10,10,n_benchmark_points*len(self.components[0]))
-        import ipdb; ipdb.set_trace()
         best_basis = minimize(self.ratio_morphing_matrix_condition,basis_proposal)["x"]
         best_basis = np.insert(best_basis,0,np.zeros(len(self.components[0])))
         best_basis = best_basis.reshape(n_benchmark_points+1,len(self.components[0]))
-        import ipdb; ipdb.set_trace()
         self.basis = best_basis
+        self.morphing_matrix = self.set_ratio_morphing_matrix(self.basis)
         # GoldMine output
         # A bit hardcoded here but I want to fix as first benchmark point the standard model
-
         if self.use_madminer_interface:
             basis_madminer = OrderedDict()
 
@@ -1099,13 +1094,8 @@ class PhysicsMorpher:
                     benchmark_name = f"morphing_basis_vector_{len(basis_madminer)}"
                 parameter = OrderedDict()
                 for p, p_name in enumerate(self.parameter_names):
-                    if i == 0:
-                        parameter[p_name] = 0.
-                    else:
-                        parameter[p_name] = benchmark[p]
+                    parameter[p_name] = benchmark[p]
                 basis_madminer[benchmark_name] = parameter
-            import ipdb; ipdb.set_trace()
-
             return basis_madminer
 
         # Normal output
@@ -1120,13 +1110,31 @@ class PhysicsMorpher:
             matrix.append(np.asarray([np.prod(basis[j]**c)for c in comps[1:len(comps)]])/self.reduced_sigma_morphing(basis[j]))
         return np.linalg.cond(matrix)
     
+    def set_ratio_morphing_matrix(self,basis):
+        comps = self.components #These are the coefficient powers of theta.
+        n_benchmark_points = len(comps)
+        matrix = []
+        for j in range(n_benchmark_points):
+            matrix.append(np.asarray([np.prod(basis[j]**c)for c in comps[0:len(comps)]])/self.reduced_sigma_morphing(basis[j]))
+        return (matrix)
+    
+    def compute_weight(self,theta):
+        comps = self.components #These are the coefficient powers of theta.
+        basis = self.basis
+        n_benchmark_points = len(comps)
+        matrix = []
+        for j in range(n_benchmark_points):
+            matrix.append(np.asarray([np.prod(basis[j]**c)for c in comps[0:len(comps)]])/self.reduced_sigma_morphing(basis[j]))
+        
+        return ((np.asarray([np.prod(theta**c)for c in comps[0:len(comps)]])/self.reduced_sigma_morphing(theta))@matrix)
+    def set_reduced(self,reduced):
+        self.reduced_cs = np.asarray(reduced)
     def reduced_sigma_morphing(self,theta):
         comps = self.components
         n_benchmark_points = len(comps)
         matrix = []
         for j in range(1,n_benchmark_points):
             matrix.append([np.prod(self.cs_basis[j]**c)for c in comps[1:len(comps)]])
-        #import ipdb; ipdb.set_trace()
         sigma_coefficients = np.linalg.inv(matrix)@self.reduced_cs
         return [np.prod(theta**c)for c in comps[1:len(comps)]]@sigma_coefficients+1
 

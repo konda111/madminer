@@ -214,7 +214,6 @@ class MadMiner:
         # Default names
         if benchmark_name is None:
             benchmark_name = f"benchmark_{len(self.benchmarks)}"
-
         # Check input
         if not isinstance(parameter_values, dict):
             raise RuntimeError(f"Parameter values are not a dict: {parameter_values}")
@@ -264,10 +263,7 @@ class MadMiner:
         self.benchmarks = OrderedDict()
         self.default_benchmark = None
 
-        import ipdb; ipdb.set_trace()
-
         if isinstance(benchmarks, dict):
-            import ipdb; ipdb.set_trace()
             for name, values in benchmarks.items():
                 self.add_benchmark(values, name, verbose=verbose)
         elif isinstance(benchmarks, list):
@@ -394,9 +390,7 @@ class MadMiner:
 
         morpher = PhysicsMorpher(parameters_from_madminer=self.parameters)
         morpher.find_components(max_overall_power)
-
         basis = morpher.optimize_basis_cs()
-
         basis.update(self.benchmarks)
 
         self.set_benchmarks(basis, verbose=False)
@@ -409,11 +403,10 @@ class MadMiner:
 
     def ratio_set_morphing(
         self,
-        reduced_cs,
         max_overall_power=4
     ):
         """
-        Function that sets the optimal morphing for the reduced cross sections.
+        Function that sets the optimal morphing for the ratio.
         Parameters
         ----------
         max_overall_power: value of degree of polynomial of EFT
@@ -424,15 +417,14 @@ class MadMiner:
 
         """
 
-        logger.info("Optimizing basis for morphing the cross sections only")
+        logger.info("Optimizing basis for morphing the ratio")
         #TODO: solve this thing that I need to call again the previous morpher
         morpher = self.morpher
         morpher.find_components(max_overall_power)
 
-        basis = morpher.optimize_basis_ratio(reduced_cs)
-
+        basis = morpher.optimize_basis_ratio()
+        self.benchmarks=OrderedDict()
         basis.update(self.benchmarks)
-        import ipdb; ipdb.set_trace()
         self.set_benchmarks(basis, verbose=False)
         self.morpher = morpher
         self.export_morphing = True
@@ -572,7 +564,8 @@ class MadMiner:
             self.benchmarks,
             _,
             morphing_components,
-            morphing_matrix,
+            cs_basis,
+            reduced_cs,
             _,
             _,
             self.systematics,
@@ -598,11 +591,11 @@ class MadMiner:
         # Morphing
         self.morpher = None
         self.export_morphing = False
-
-        if morphing_matrix is not None and morphing_components is not None and not disable_morphing:
+        if cs_basis is not None and morphing_components is not None and not disable_morphing:
             self.morpher = PhysicsMorpher(self.parameters)
             self.morpher.set_components(morphing_components)
-            self.morpher.set_basis(self.benchmarks, morphing_matrix=morphing_matrix)
+            self.morpher.cs_basis = cs_basis
+            self.morpher.reduced_cs = reduced_cs
             self.export_morphing = True
 
             logger.info("Found morphing setup with %s components", len(morphing_components))
@@ -648,14 +641,14 @@ class MadMiner:
 
         if self.morpher is not None:
             logger.info("Saving setup (including morphing) to %s", filename)
-
             save_madminer_settings(
                 file_name=filename,
                 file_override=True,
                 parameters=self.parameters,
                 benchmarks=self.benchmarks,
                 morphing_components=self.morpher.components,
-                morphing_matrix=self.morpher.morphing_matrix,
+                cs_basis=self.morpher.cs_basis,
+                reduced_cs=self.morpher.reduced_cs,
                 systematics=self.systematics,
                 finite_differences=self.finite_difference_benchmarks,
                 finite_differences_epsilon=self.finite_difference_epsilon,

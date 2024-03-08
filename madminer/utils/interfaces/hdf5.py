@@ -72,7 +72,8 @@ def load_madminer_settings(file_name: str, include_nuisance_benchmarks: bool) ->
 
     (
         morphing_components,
-        morphing_matrix,
+        cs_basis,
+        reduced_cs,
     ) = _load_morphing(file_name)
 
     (
@@ -140,7 +141,8 @@ def load_madminer_settings(file_name: str, include_nuisance_benchmarks: bool) ->
         benchmarks,
         benchmark_nuisance_flags,
         morphing_components,
-        morphing_matrix,
+        cs_basis,
+        reduced_cs,
         observables,
         num_samples,
         systematics,
@@ -159,7 +161,8 @@ def save_madminer_settings(
     parameters: Dict[str, AnalysisParameter],
     benchmarks: Dict[str, Benchmark],
     morphing_components: np.ndarray = None,
-    morphing_matrix: np.ndarray = None,
+    cs_basis: np.ndarray = None,
+    reduced_cs: np.ndarray = None,
     systematics: Dict[str, Systematic] = None,
     finite_differences: Dict[str, FiniteDiffBenchmark] = None,
     finite_differences_epsilon: float = None,
@@ -199,7 +202,7 @@ def save_madminer_settings(
     # Save information within the HDF5 file
     _save_analysis_parameters(file_name, file_override, parameters)
     _save_benchmarks(file_name, file_override, benchmark_names, benchmark_values)
-    _save_morphing(file_name, file_override, morphing_components, morphing_matrix)
+    _save_morphing(file_name, file_override, morphing_components, cs_basis, reduced_cs)
 
     if len(finite_differences) > 0:
         _save_finite_diffs(
@@ -698,21 +701,23 @@ def _load_morphing(file_name: str) -> Tuple[np.ndarray, np.ndarray]:
     with h5py.File(file_name, "r") as file:
         try:
             morphing_components = file["morphing/components"][()]
-            morphing_matrix = file["morphing/morphing_matrix"][()]
+            cs_basis = file["morphing/cs_basis"][()]
+            reduced_cs = file["morphing/reduced_cs"][()]
         except KeyError:
             logger.info("HDF5 file does not contain morphing information")
         else:
             morphing_components = np.asarray(morphing_components, dtype=int)
             morphing_matrix = np.asarray(morphing_matrix, dtype=float)
 
-    return morphing_components, morphing_matrix
+    return morphing_components, cs_basis, reduced_cs
 
 
 def _save_morphing(
     file_name: str,
     file_override: bool,
     morphing_components: np.ndarray,
-    morphing_matrix: np.ndarray,
+    cs_basis: np.ndarray,
+    reduced_cs: np.ndarray
 ) -> None:
     """
     Save morphing properties into a HDF5 data file
@@ -722,14 +727,14 @@ def _save_morphing(
     file_name : str
     file_override : bool
     morphing_components : numpy.ndarray
-    morphing_matrix : numpy.ndarray
+    cs_basis : numpy.ndarray
 
     Returns
     -------
         None
     """
 
-    if morphing_components is None or morphing_matrix is None:
+    if morphing_components is None or cs_basis is None or reduced_cs is None:
         return
 
     # Append if file exists, otherwise create
@@ -737,9 +742,9 @@ def _save_morphing(
         if file_override:
             with suppress(KeyError):
                 del file["morphing"]
-
         file.create_dataset("morphing/components", data=morphing_components.astype(int))
-        file.create_dataset("morphing/morphing_matrix", data=morphing_matrix.astype(float))
+        file.create_dataset("morphing/cs_basis", data=cs_basis.astype(float))
+        file.create_dataset("morphing/reduced_cs", data=reduced_cs.astype(float))
 
 
 def _load_nuisance_params(file_name: str) -> Dict[str, NuisanceParameter]:
