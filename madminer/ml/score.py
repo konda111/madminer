@@ -1071,7 +1071,7 @@ class BayesianScoreEstimator(ScoreEstimator):
         )
         return result
     
-    def evaluate_score(self, x, theta=None, nuisance_mode="auto"):
+    def evaluate_score(self, x, theta=None, nuisance_mode="auto", n_eval=100):
         """
         Evaluates the score.
 
@@ -1118,7 +1118,7 @@ class BayesianScoreEstimator(ScoreEstimator):
 
         # Evaluation
         logger.debug("Starting score evaluation")
-        t_hat = evaluate_unc_local_score_model(model=self.model, xs=x)
+        t_hat = evaluate_unc_local_score_model(model=self.model, xs=x, n_eval=n_eval)
 
         # Treatment of nuisance parameters
         if nuisance_mode == "keep":

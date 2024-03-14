@@ -233,7 +233,14 @@ def evaluate_local_score_model(model, xs=None, run_on_gpu=True, double_precision
 
     return t_hat
 
-def evaluate_unc_local_score_model(model, xs=None, run_on_gpu=True, double_precision=False, return_grad_x=False):
+def evaluate_unc_local_score_model(
+    model, 
+    xs=None, 
+    run_on_gpu=True, 
+    double_precision=False, 
+    return_grad_x=False,
+    n_eval=1
+):
     # CPU or GPU?
     run_on_gpu = run_on_gpu and torch.cuda.is_available()
     device = torch.device("cuda" if run_on_gpu else "cpu")
@@ -246,32 +253,44 @@ def evaluate_unc_local_score_model(model, xs=None, run_on_gpu=True, double_preci
     xs = xs.to(device, dtype)
 
     # Evaluate networks
-    if return_grad_x:
-        model.eval()
-        t_hat, x_gradients = model(xs, return_grad_x=True)
-    else:
-        with torch.no_grad():
+    t_hat_list = []
+    x_gradients_list = []
+    for _ in range(n_eval):
+        if return_grad_x:
             model.eval()
-            t_hat = model(xs)
-        x_gradients = None
+            t_hat, x_gradients = model(xs, return_grad_x=True)
+        else:
+            with torch.no_grad():
+                model.eval()
+                t_hat = model(xs)
+            x_gradients = None
 
-    # Copy back tensors to CPU
-    if run_on_gpu:
-        t_hat = t_hat.cpu()
-        if x_gradients is not None:
-            x_gradients = x_gradients.cpu()
+        # Copy back tensors to CPU
+        if run_on_gpu:
+            t_hat = t_hat.cpu()
+            if x_gradients is not None:
+                x_gradients = x_gradients.cpu()
 
-    # Get data and return
-    t_hat = t_hat.detach().numpy()
-    t_hat = t_hat.reshape(t_hat.shape[0], 2)
-    t_hat_mu = t_hat[:, 0]
-    t_hat_sig = np.exp(.5*t_hat[:, 1])
-
+        # Get data and return
+        t_hat = t_hat.detach().numpy()
+        t_hat_mu = t_hat[:, 0]
+        t_hat_sig = np.exp(.5*t_hat[:, 1])
+        t_hat_list.append([t_hat_mu, t_hat_sig])
+        if return_grad_x:
+            x_gradients = x_gradients.detach().numpy()
+            x_gradients_list.append(x_gradients)
+    
+    t_hat_list = np.array(t_hat_list)
+    x_gradients_list = np.array(x_gradients_list)
+    
+    t_hat_mu = t_hat_list[:,0].mean(axis=0)
+    t_hat_sig = t_hat_list[:,0].std(axis=0)
+    t_hat_sig_stoch = np.sqrt(np.mean(t_hat_list[:,1], axis=0))
+    t_hat_sig_tot = np.sqrt(t_hat_sig**2 + t_hat_sig_stoch**2)
     if return_grad_x:
-        x_gradients = x_gradients.detach().numpy()
-        return t_hat_mu, t_hat_sig, x_gradients
+        return t_hat_mu, t_hat_sig, t_hat_sig_stoch, t_hat_sig_tot, x_gradients
 
-    return t_hat_mu, t_hat_sig
+    return t_hat_mu, t_hat_sig, t_hat_sig_stoch, t_hat_sig_tot
 
 def evaluate_repulsive_ensemble_local_score_model(model, xs=None, run_on_gpu=True, double_precision=False, return_grad_x=False):
     # CPU or GPU?
