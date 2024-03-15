@@ -39,3 +39,4 @@ from .sampling import morphing_points
 from .sampling import random_morphing_points
 from .sampling import iid_nuisance_parameters
 from .sampling import nominal_nuisance_parameters
+from .utils.interfaces.hdf5 import _load_samples

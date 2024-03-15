@@ -1,0 +1,9 @@
+
+        launch ./mg_processes/signal_1
+        shower=OFF
+        detector=OFF
+        analysis=OFF
+        madspin=OFF
+        reweight=ON
+        done
+        

@@ -74,6 +74,7 @@ def load_madminer_settings(file_name: str, include_nuisance_benchmarks: bool) ->
         morphing_components,
         cs_basis,
         reduced_cs,
+        basis,
     ) = _load_morphing(file_name)
 
     (
@@ -143,6 +144,7 @@ def load_madminer_settings(file_name: str, include_nuisance_benchmarks: bool) ->
         morphing_components,
         cs_basis,
         reduced_cs,
+        basis,
         observables,
         num_samples,
         systematics,
@@ -163,6 +165,7 @@ def save_madminer_settings(
     morphing_components: np.ndarray = None,
     cs_basis: np.ndarray = None,
     reduced_cs: np.ndarray = None,
+    basis: np.ndarray = None,
     systematics: Dict[str, Systematic] = None,
     finite_differences: Dict[str, FiniteDiffBenchmark] = None,
     finite_differences_epsilon: float = None,
@@ -202,7 +205,7 @@ def save_madminer_settings(
     # Save information within the HDF5 file
     _save_analysis_parameters(file_name, file_override, parameters)
     _save_benchmarks(file_name, file_override, benchmark_names, benchmark_values)
-    _save_morphing(file_name, file_override, morphing_components, cs_basis, reduced_cs)
+    _save_morphing(file_name, file_override, morphing_components, cs_basis, reduced_cs, basis)
 
     if len(finite_differences) > 0:
         _save_finite_diffs(
@@ -706,13 +709,17 @@ def _load_morphing(file_name: str) -> Tuple[np.ndarray, np.ndarray]:
                 reduced_cs = file["morphing/reduced_cs"][()]
             except:
                 reduced_cs = None
+            try:
+                basis = file["morphing/basis"][()]
+            except:
+                basis = None
         except KeyError:
             logger.info("HDF5 file does not contain morphing information")
         else:
             morphing_components = np.asarray(morphing_components, dtype=int)
             morphing_matrix = np.asarray(morphing_matrix, dtype=float)
 
-    return morphing_components, cs_basis, reduced_cs
+    return morphing_components, cs_basis, reduced_cs, basis
 
 
 def _save_morphing(
@@ -720,7 +727,8 @@ def _save_morphing(
     file_override: bool,
     morphing_components: np.ndarray,
     cs_basis: np.ndarray,
-    reduced_cs: np.ndarray
+    reduced_cs: np.ndarray,
+    basis: np.ndarray
 ) -> None:
     """
     Save morphing properties into a HDF5 data file
@@ -749,6 +757,7 @@ def _save_morphing(
         file.create_dataset("morphing/cs_basis", data=cs_basis.astype(float))
         try:
             file.create_dataset("morphing/reduced_cs", data=reduced_cs.astype(float))
+            file.create_dataset("morphing/basis", data=basis.astype(float))
         except:
             pass
 

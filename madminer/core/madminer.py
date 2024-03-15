@@ -400,6 +400,36 @@ class MadMiner:
         logger.info(
             "Testing out"
         )
+    def cs_set_morphing_2(
+        self,
+        max_overall_power=4
+    ):
+        """
+        Function that sets the optimal morphing for the reduced cross sections.
+        Parameters
+        ----------
+        max_overall_power: value of degree of polynomial of EFT
+
+        Returns
+        -------
+            None
+
+        """
+
+        logger.info("Optimizing basis for morphing the cross sections only")
+
+        morpher = PhysicsMorpher(parameters_from_madminer=self.parameters)
+        morpher.find_components(max_overall_power)
+        basis = morpher.optimize_basis_cs_2()
+        basis.update(self.benchmarks)
+
+        self.set_benchmarks(basis, verbose=False)
+        self.morpher = morpher
+        self.export_morphing = True
+
+        logger.info(
+            "Testing out"
+        )
 
     def ratio_set_morphing(
         self,
@@ -566,6 +596,7 @@ class MadMiner:
             morphing_components,
             cs_basis,
             reduced_cs,
+            basis,
             _,
             _,
             self.systematics,
@@ -596,6 +627,7 @@ class MadMiner:
             self.morpher.set_components(morphing_components)
             self.morpher.cs_basis = cs_basis
             self.morpher.reduced_cs = reduced_cs
+            self.morpher.basis = basis
             self.export_morphing = True
 
             logger.info("Found morphing setup with %s components", len(morphing_components))
@@ -649,6 +681,7 @@ class MadMiner:
                 morphing_components=self.morpher.components,
                 cs_basis=self.morpher.cs_basis,
                 reduced_cs=self.morpher.reduced_cs,
+                basis=self.morpher.basis,
                 systematics=self.systematics,
                 finite_differences=self.finite_difference_benchmarks,
                 finite_differences_epsilon=self.finite_difference_epsilon,

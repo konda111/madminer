@@ -105,6 +105,7 @@ class LHEReader:
             _,
             _,
             _,
+            _,
             self.systematics,
             _,
             _,

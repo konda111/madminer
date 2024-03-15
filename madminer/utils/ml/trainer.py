@@ -65,7 +65,6 @@ class Trainer:
         self._timer(start="check data")
 
         logger.debug("Initialising training data")
-        #import ipdb; ipdb.set_trace()
         self.check_data(data)
         self.report_data(data)
         if data_val is not None:
@@ -558,7 +557,6 @@ class SingleParameterizedRatioTrainer(Trainer):
 
         if self.calculate_model_score:
             theta.requires_grad = True
-        #import ipdb; ipdb.set_trace()
         s_hat, log_r_hat, t_hat = self.model(theta, x, track_score=self.calculate_model_score, return_grad_x=False)
         self._timer(stop="fwd: model.forward", start="fwd: check for nans")
         self._check_for_nans("Model output", log_r_hat, s_hat)
@@ -601,7 +599,6 @@ class MorphSingleParameterizedRatioTrainer(Trainer):
         self._check_for_nans("Augmented training data", r_xz, t_xz)
         self._timer(start="fwd: model.forward", stop="fwd: check for nans")
 
-        import ipdb; ipdb.set_trace()
         s_hat, log_r_hat, t_hat = self.model(x, return_grad_x=False)
         self._timer(stop="fwd: model.forward", start="fwd: check for nans")
         self._check_for_nans("Model output", log_r_hat, s_hat)
@@ -641,7 +638,6 @@ class BayesianSingleParameterizedRatioTrainer(SingleParameterizedRatioTrainer):
 
         if self.calculate_model_score:
             theta.requires_grad = True
-        #import ipdb; ipdb.set_trace()
         s_hat, log_r_hat, t_hat = self.model(theta, x, track_score=self.calculate_model_score, return_grad_x=False)
         self._timer(stop="fwd: model.forward", start="fwd: check for nans")
         self._check_for_nans("Model output", log_r_hat, s_hat)

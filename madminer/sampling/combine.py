@@ -120,6 +120,8 @@ def combine_and_shuffle(
             _,
             _,
             _,
+            _,
+            _,
             n_signal_events_generated_per_benchmark,
             n_background_events,
             _,

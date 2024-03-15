@@ -1,0 +1,9 @@
+
+        launch ./mg_processes/ratio_signal_4
+        shower=OFF
+        detector=OFF
+        analysis=OFF
+        madspin=OFF
+        reweight=ON
+        done
+        

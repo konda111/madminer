@@ -1476,7 +1476,7 @@ class SampleAugmenter(DataAnalyzer):
         sample_only_from_closest_benchmark,
         augmented_data_definitions,
         sampling_index=0,
-        needs_gradients=True,
+        needs_gradients=False,
         nuisance_score=True,
         partition="train",
         test_split=0.2,

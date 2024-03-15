@@ -32,7 +32,6 @@ class DataAnalyzer:
         # Save setup
         self.include_nuisance_parameters = include_nuisance_parameters
         self.madminer_filename = filename
-
         # Load data
         logger.info("Loading data from %s", filename)
         (
@@ -40,7 +39,9 @@ class DataAnalyzer:
             self.benchmarks,
             self.benchmark_nuisance_flags,
             self.morphing_components,
-            self.morphing_matrix,
+            self.cs_basis,
+            self.reduced_cs,
+            self.basis,
             self.observables,
             self.n_samples,
             self.systematics,
@@ -60,10 +61,12 @@ class DataAnalyzer:
 
         # Morphing
         self.morpher = None
-        if self.morphing_matrix is not None and self.morphing_components is not None and not disable_morphing:
+        if self.cs_basis is not None and self.morphing_components is not None and not disable_morphing:
             self.morpher = PhysicsMorpher(self.parameters)
             self.morpher.set_components(self.morphing_components)
-            self.morpher.set_basis(self.benchmarks, morphing_matrix=self.morphing_matrix)
+            self.morpher.set_cs_basis(self.cs_basis)
+            self.morpher.set_reduced(self.reduced_cs)
+            self.morpher.set_ratio_basis(self.basis)
 
         # Nuisance morphing
         self.nuisance_morpher = None
@@ -660,7 +663,6 @@ class DataAnalyzer:
         # Effect of nuisance parameters
         nuisance_factors = self._calculate_nuisance_factors(nus, benchmark_weights)
         weights = nuisance_factors * weights_nom
-        #import ipdb; ipdb.set_trace()
         return weights
 
     def _weight_gradients(
