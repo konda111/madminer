@@ -52,6 +52,7 @@ class Trainer:
         batch_size=100,
         optimizer=optim.Adam,
         optimizer_kwargs=None,
+        scheduler=False,
         initial_lr=0.001,
         final_lr=0.0001,
         data_val=None,
@@ -87,6 +88,8 @@ class Trainer:
         logger.debug("Setting up optimizer")
         optimizer_kwargs = {} if optimizer_kwargs is None else optimizer_kwargs
         opt = optimizer(self.model.parameters(), lr=initial_lr, **optimizer_kwargs)
+        if scheduler:
+            sched = optim.lr_scheduler.CosineAnnealingLR(opt, epochs)         
 
         early_stopping = early_stopping and (validation_split is not None) and (epochs > 1)
         best_loss, best_model, best_epoch = None, None, None
@@ -126,8 +129,12 @@ class Trainer:
             logger.debug("Training epoch %s / %s", i_epoch + 1, epochs)
 
             self._timer(start="set lr")
-            lr = self.calculate_lr(i_epoch, epochs, initial_lr, final_lr)
-            self.set_lr(opt, lr)
+            if not scheduler:
+                lr = self.calculate_lr(i_epoch, epochs, initial_lr, final_lr)
+                self.set_lr(opt, lr)
+            else:
+                sched.step()
+                lr = opt.param_groups[0]['lr']
             logger.debug("Learning rate: %s", lr)
             self._timer(stop="set lr")
             loss_val = None
@@ -688,10 +695,12 @@ class RepulsiveEnsembeLocalScoreTrainer(Trainer):
 
         self._timer(start="fwd: model.forward", stop="fwd: check for nans")
         t_hat = self.model(x)
+        t_hat = torch.reshape(t_hat, (n_channels, batch_data["x"].shape[0], self.model.n_parameters, 2)) # bring outputs to shape (n_channels, n_data, n_parameters, 2)
         self._timer(stop="fwd: model.forward", start="fwd: check for nans")
         self._check_for_nans("Model output", t_hat)
 
         self._timer(start="fwd: calculate losses", stop="fwd: check for nans")
+         # bring outputs to shape [[mu_1, sigma_1], [mu_2, sigma_2], ...]
         losses = [loss_function(t_hat, t_xz) for loss_function in loss_functions]
         self._timer(stop="fwd: calculate losses", start="fwd: check for nans")
         self._check_for_nans("Loss", *losses)
@@ -712,7 +721,7 @@ class BayesianLocalScoreTrainer(LocalScoreTrainer):
 
         self._timer(start="fwd: model.forward", stop="fwd: check for nans")
         outputs = self.model(x)
-        # outputs = torch.reshape(outputs, (self.model.n_parameters, 2))
+        outputs = torch.reshape(outputs, (-1, 2)) # bring outputs to shape [[mu_1, sigma_1], [mu_2, sigma_2], ...]
         self._timer(stop="fwd: model.forward", start="fwd: check for nans")
         self._check_for_nans("Model output", outputs)
 

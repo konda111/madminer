@@ -73,17 +73,19 @@ def repulsive_ensemble_loss(outputs, t_true):
     # RBF kernel with median estimator
     def kernel(x, y):
         channels = len(x)
-        dnorm2 = (x.reshape(channels,1,-1) - y.reshape(1,channels,-1)).square().sum(dim=2)
+        dim_score = x.shape[-1]
+        dnorm2 = (x.reshape(channels,1,-1, dim_score) - y.reshape(1,channels,-1, dim_score)).square().sum(dim=2)
         sigma = torch.quantile(dnorm2.detach(), 0.5) / (2 * math.log(channels + 1))
         return torch.exp(- dnorm2 / (2*sigma))
     # first compute heteroskedastic regression loss
-    mus = outputs[:, :, 0]
-    logsigma2s = outputs[:, :, 1]
+    mus = outputs[:, :, :, 0]
+    logsigma2s = outputs[:, :, :, 1]
     reg = torch.pow(mus - t_true.reshape(mus.shape), 2)/(2 * logsigma2s.exp()) + 1/2. * logsigma2s
     # repulsive ensemble loss
     k = kernel(reg, reg.detach())
     reg_mean, reg_std = reg.mean(dim=1), reg.std(dim=1)
-    return torch.sum(reg_mean + (k.sum(dim=1) / k.detach().sum(dim=1) - 1) / len(mus), dim=0)
+    loss = torch.sum(reg_mean + (k.sum(dim=1) / k.detach().sum(dim=1) - 1) / len(mus), dim=0)
+    return loss
 
 
 def bayesian_loss(model, outputs, t_true):

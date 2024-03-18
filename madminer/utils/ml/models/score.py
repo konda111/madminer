@@ -136,6 +136,7 @@ class RepulsiveEnsembleDenseLocalScoreModel(DenseLocalScoreModel):
         self.activation = get_activation_function(activation)
         self.dropout_prob = dropout_prob
         self.n_channels = n_channels
+        self.n_parameters = n_parameters
 
         # Build network
         self.layers = nn.ModuleList()

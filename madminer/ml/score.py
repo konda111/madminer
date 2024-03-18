@@ -583,6 +583,8 @@ class RepulsiveEnsembleScoreEstimator(ScoreEstimator):
         n_workers=8,
         clip_gradient=None,
         early_stopping_patience=None,
+        optimizer_kwargs={},
+        scheduler=False
     ):
         """
         Trains the network.
@@ -748,6 +750,7 @@ class RepulsiveEnsembleScoreEstimator(ScoreEstimator):
         loss_functions, loss_labels, loss_weights = get_loss(method, None)
         # Optimizer
         opt, opt_kwargs = get_optimizer(optimizer, nesterov_momentum)
+        opt_kwargs = {**opt_kwargs, **optimizer_kwargs}
 
         # Train model
         logger.info("Training model")
@@ -762,6 +765,7 @@ class RepulsiveEnsembleScoreEstimator(ScoreEstimator):
             batch_size=batch_size,
             optimizer=opt,
             optimizer_kwargs=opt_kwargs,
+            scheduler=scheduler,
             initial_lr=initial_lr,
             final_lr=final_lr,
             validation_split=validation_split,
@@ -819,7 +823,7 @@ class RepulsiveEnsembleScoreEstimator(ScoreEstimator):
 
         # Evaluation
         logger.debug("Starting score evaluation")
-        t_hat = evaluate_repulsive_ensemble_local_score_model(model=self.model, xs=x)
+        t_hat_mu, t_hat_std = evaluate_repulsive_ensemble_local_score_model(model=self.model, xs=x)
 
         # Treatment of nuisance parameters
         if nuisance_mode == "keep":
@@ -846,7 +850,7 @@ class RepulsiveEnsembleScoreEstimator(ScoreEstimator):
         else:
             raise ValueError(f"Unknown nuisance_mode {nuisance_mode}")
 
-        return t_hat
+        return t_hat_mu, t_hat_std
     
     def _create_model(self):
         self.model = RepulsiveEnsembleDenseLocalScoreModel(
@@ -857,6 +861,76 @@ class RepulsiveEnsembleScoreEstimator(ScoreEstimator):
             dropout_prob=self.dropout_prob,
             n_channels=self.n_channels
         )
+    
+    def calculate_fisher_information(self, x, theta=None, weights=None, n_events=1, sum_events=True):
+        """
+        Calculates the expected Fisher information matrix based on the kinematic information in a given number of
+        events.
+
+        Parameters
+        ----------
+        x : str or ndarray
+            Sample of observations, or path to numpy file with observations. Note that this sample has to be sampled
+            from the reference parameter where the score is estimated with the SALLY / SALLINO estimator.
+
+        theta: None or ndarray
+            Numerator parameter point, or filename of a pickled numpy array. Has no effect for ScoreEstimator.
+
+        weights : None or ndarray, optional
+            Weights for the observations. If None, all events are taken to have equal weight. Default value: None.
+
+        n_events : float, optional
+            Expected number of events for which the kinematic Fisher information should be calculated. Default value: 1.
+
+        sum_events : bool, optional
+            If True, the expected Fisher information summed over the events x is calculated. If False, the per-event
+            Fisher information for each event is returned. Default value: True.
+
+        Returns
+        -------
+        fisher_information : ndarray
+            Expected kinematic Fisher information matrix with shape `(n_events, n_parameters, n_parameters)` if
+            sum_events is False or `(n_parameters, n_parameters)` if sum_events is True.
+        """
+
+        if self.model is None:
+            raise ValueError("No model -- train or load model before evaluating it!")
+
+        # Load training data
+        logger.info("Loading evaluation data")
+        x = load_and_check(x)
+        n_samples = x.shape[0]
+
+        # Estimate scores
+        t_hats_mu, t_hats_std = self.evaluate_score(x=x, theta=np.array([theta for _ in x]), nuisance_mode="keep")
+        t_hats_mu2 = t_hats_mu ** 2
+        t_hats_std2 = t_hats_std ** 2
+        fisher_dim = t_hats_mu.shape[1]
+
+        # Weights
+        if weights is None:
+            weights = np.ones(n_samples)
+        weights /= np.sum(weights)
+
+        # Calculate Fisher information
+        logger.info("Calculating Fisher information")
+        one_plus_deltaij = np.ones(fisher_dim) + np.eye(fisher_dim)
+        if sum_events:
+            fisher_information = float(n_events) * np.einsum("n,ni,nj->ij", weights, t_hats_mu, t_hats_mu)
+            fisher_information_unc = np.einsum("ij,n,ni,nj->ij", one_plus_deltaij, weights, t_hats_mu2, t_hats_std2) \
+                                   + np.einsum("ij,n,nj,ni->ij", one_plus_deltaij, weights, t_hats_mu2, t_hats_std2)
+            fisher_information_unc = float(n_events) * np.sqrt(fisher_information_unc) 
+        else:
+            fisher_information = float(n_events) * np.einsum("n,ni,nj->nij", weights, t_hats_mu, t_hats_mu)
+            fisher_information_unc = np.einsum("ij,n,ni,nj->nij", one_plus_deltaij, weights, t_hats_mu2, t_hats_std2) \
+                                   + np.einsum("ij,n,nj,ni->nij", one_plus_deltaij, weights, t_hats_mu2, t_hats_std2)
+            fisher_information_unc = float(n_events) * np.sqrt(fisher_information_unc) 
+
+        # Calculate expected score
+        expected_score = np.mean(t_hats_mu, axis=0)
+        logger.debug("Expected per-event score (should be close to zero): %s", expected_score)
+
+        return fisher_information, fisher_information_unc
         
 class BayesianScoreEstimator(ScoreEstimator):
     def train(
