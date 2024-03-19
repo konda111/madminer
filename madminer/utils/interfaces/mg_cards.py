@@ -2,6 +2,7 @@ import logging
 
 from collections import OrderedDict
 from typing import Dict
+import numpy as np
 
 from madminer.models import AnalysisParameter
 from madminer.models import Benchmark
@@ -125,7 +126,7 @@ def export_reweight_card(
 
             # Transform parameters if needed
             if param_transform is not None and not param_transform == "_":
-                variables = {"theta": param_value}
+                variables = {"theta": param_value, "sqrt": np.sqrt}
                 param_value = eval(param_transform, variables)
 
             lines.append(f"  set {param_lha_block} {param_lha_id} {param_value}")

@@ -6,7 +6,7 @@ from .ensemble import Ensemble
 from .double_parameterized_ratio import DoubleParameterizedRatioEstimator
 from .likelihood import LikelihoodEstimator
 from .parameterized_ratio import ParameterizedRatioEstimator
-from .score import ScoreEstimator
+from .score import ScoreEstimator, RepulsiveEnsembleScoreEstimator
 
 
 def load_estimator(filename):
@@ -21,11 +21,12 @@ def load_estimator(filename):
             estimator_type = settings["estimator_type"]
         except KeyError:
             raise RuntimeError("Undefined estimator type")
-
         if estimator_type == "parameterized_ratio":
             model = ParameterizedRatioEstimator()
         elif estimator_type == "double_parameterized_ratio":
             model = DoubleParameterizedRatioEstimator()
+        elif estimator_type == "repulsive_ensemble_score":
+            model = RepulsiveEnsembleScoreEstimator()
         elif estimator_type == "score":
             model = ScoreEstimator()
         elif estimator_type == "likelihood":

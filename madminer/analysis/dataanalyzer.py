@@ -67,7 +67,7 @@ class DataAnalyzer:
 
         # Nuisance morphing
         self.nuisance_morpher = None
-        if self.n_nuisance_parameters > 0:
+        if self.n_nuisance_parameters > 0 and include_nuisance_parameters:
             self.nuisance_morpher = NuisanceMorpher(
                 self.nuisance_parameters,
                 self.benchmarks.keys(),
@@ -761,7 +761,10 @@ class DataAnalyzer:
             Factor with which the weights and cross sections will have to be multiplied to make up
             for the missing events.
         """
-
+        if test_split is None:
+            test_split = 0.0
+        if validation_split is None:
+            validation_split = 0.0
         assert test_split + validation_split <= 1.0
         train_split = 1.0 - test_split - validation_split
 
@@ -904,7 +907,7 @@ class DataAnalyzer:
 
         end_event = int(round(split * self.n_samples, 0))
 
-        if not 0 < end_event < self.n_samples:
+        if not 0 < end_event <= self.n_samples:
             raise ValueError(f"Irregular split: sample {end_event} / {self.n_samples}")
 
         return end_event
@@ -912,6 +915,10 @@ class DataAnalyzer:
     def _find_closest_benchmark(self, theta):
         if theta is None:
             return None
+
+        # remove nuisance parameters
+        if len(theta) > self.n_parameters:
+            theta = theta[: self.n_parameters]
 
         benchmarks = self._benchmark_array()[: self.n_benchmarks_phys]
         distances = [np.linalg.norm(benchmark - theta) for benchmark in benchmarks]

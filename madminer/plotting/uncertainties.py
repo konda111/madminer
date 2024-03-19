@@ -357,9 +357,10 @@ def plot_systematics(
     for i_syst, syst_name in enumerate(sa.systematics.keys()):
         n_used = n_nuisance_params
         used_nuisance_parameters = []
-        for npar, (npar_syst, _, _) in sa.nuisance_parameters.items():
-            if npar_syst == syst_name:
-                used_nuisance_parameters.append(npar)
+        for npar_name, npar in sa.nuisance_parameters.items():
+        # for npar, (npar_syst, _, _) in sa.nuisance_parameters.items():
+            if npar.name == syst_name:
+                used_nuisance_parameters.append(npar_name)
 
         for i in range(n_nuisance_params):
             if all_nuisance_parameters[i] not in used_nuisance_parameters:

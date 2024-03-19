@@ -364,10 +364,15 @@ def parse_lhe_file(
                 weight_name0 = sampling_benchmark
             if processing is None:
                 output_weights[nuisance_benchmark0] = weights_all_events[weight_name0]
-            elif isinstance(processing, float):
-                output_weights[nuisance_benchmark0] = processing * weights_all_events[weight_name0]
             else:
-                raise RuntimeError(f"Unknown nuisance processing {processing}")
+                try:
+                    output_weights[nuisance_benchmark0] = float(processing) * weights_all_events[weight_name0]
+                except:
+                    raise RuntimeError(f"Unknown nuisance processing {processing}")
+            # elif isinstance(processing, float):
+            #     output_weights[nuisance_benchmark0] = processing * weights_all_events[weight_name0]
+            # else:
+            #     raise RuntimeError(f"Unknown nuisance processing {processing}")
 
             # Store second benchmark associated with nuisance param
             if nuisance_benchmark1 is None or weight_name1 is None:

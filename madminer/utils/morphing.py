@@ -1146,7 +1146,8 @@ class NuisanceMorpher:
 
         if nuisance_parameters is None:
             nuisance_parameters = np.zeros(self.n_nuisance_parameters)
-
+        else:
+            nuisance_parameters = np.array(nuisance_parameters)
         a = self.calculate_a(benchmark_weights)  # Shape (n_nuisance_parameters, n_events)
         b = self.calculate_b(benchmark_weights)  # Shape (n_nuisance_parameters, n_events)
 

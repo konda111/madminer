@@ -8,6 +8,8 @@ from typing import Dict
 from typing import List
 from typing import Union
 
+import numpy as np
+
 from madminer.models import AnalysisParameter
 from madminer.models import Benchmark
 from madminer.models import Systematic
@@ -341,12 +343,24 @@ class MadMiner:
 
         if include_existing_benchmarks:
             n_predefined_benchmarks = len(self.benchmarks)
-            basis = morpher.optimize_basis(
-                n_bases=n_bases,
-                benchmarks_from_madminer=self.benchmarks,
-                n_trials=n_trials,
-                n_test_thetas=n_test_thetas,
-            )
+            logger.info(f"Need to find {morpher.n_components} basis points, already have {n_predefined_benchmarks}")
+            if morpher.n_components == len(self.benchmarks):
+                logger.info("No new basis points needed")
+                basis_array = []
+                basis = {}
+                for benchmark in self.benchmarks.values():
+                    basis_array.append(list(benchmark.values.values()))
+                    basis[benchmark.name] = benchmark.values
+                basis_array = np.array(basis_array)
+                morpher.basis = basis_array
+                morpher.morphing_matrix = morpher.calculate_morphing_matrix(basis_array)
+            else:
+                basis = morpher.optimize_basis(
+                    n_bases=n_bases,
+                    benchmarks_from_madminer=self.benchmarks,
+                    n_trials=n_trials,
+                    n_test_thetas=n_test_thetas,
+                )
         else:
             n_predefined_benchmarks = 0
             basis = morpher.optimize_basis(

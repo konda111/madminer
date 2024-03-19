@@ -71,8 +71,8 @@ class Systematic:
     def __post_init__(self):
         """Perform certain attribute quality assertions"""
 
-        if self.type != SystematicType.SCALE:
-            assert self.scale is None, "Cannot specify scale"
+        # if self.type != SystematicType.SCALE:
+        #     assert self.scale is None, "Cannot specify scale"
 
         if self.type == SystematicType.SCALE:
             assert self.scale is not None, "Must specify scale"

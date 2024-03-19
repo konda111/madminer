@@ -147,6 +147,10 @@ def get_loss(method, alpha):
         loss_functions = [losses.bayesian_loss]
         loss_weights = [1.0]
         loss_labels = ["bayesian_loss"]
+    elif method == "sally_weighted":
+        loss_functions = [losses.local_score_mse_weighted]
+        loss_weights = [1.0]
+        loss_labels = ["mse_score_weighted"]
     elif method == "nde":
         loss_functions = [losses.flow_nll]
         loss_weights = [1.0]

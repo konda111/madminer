@@ -749,18 +749,33 @@ class DelphesReader:
             for nuisance_param_name, ((benchmark0, weight0), (benchmark1, weight1), _) in nuisance_info.items():
                 nuisance_param = self.nuisance_parameters.get(nuisance_param_name)
 
-                if nuisance_param is None:
-                    raise RuntimeError(f"Nuisance parameter {nuisance_param_name} does not exist")
                 if (
-                    nuisance_param.systematic != systematics_name
-                    or nuisance_param.benchmark_pos != benchmark0
-                    or nuisance_param.benchmark_neg != benchmark1
+                    self.nuisance_parameters is not None
+                    and nuisance_param_name in self.nuisance_parameters
+                    # and (systematics_name, benchmark0, benchmark1) != self.nuisance_parameters[nuisance_param_name]
                 ):
-                    raise RuntimeError(
-                        f"Inconsistent information for same nuisance parameter {nuisance_param_name}. "
-                        f"Old: {nuisance_param}. "
-                        f"New: {(systematics_name, benchmark0, benchmark1)}."
+                    if (
+                        nuisance_param.systematic != systematics_name
+                        or nuisance_param.benchmark_pos != benchmark0
+                        or nuisance_param.benchmark_neg != benchmark1
+                    ):
+                        raise RuntimeError(
+                            f"Inconsistent information for same nuisance parameter {nuisance_param_name}. "
+                            f"Old: {self.nuisance_parameters[nuisance_param_name]}. "
+                            f"New: {(systematics_name, benchmark0, benchmark1)}."
                     )
+                # if nuisance_param is not None and nuisance_param.name == nuisance_param_name:
+                #     raise RuntimeError(f"Nuisance parameter {nuisance_param_name} already defined")
+                # if (
+                #     nuisance_param.systematic != systematics_name
+                #     or nuisance_param.benchmark_pos != benchmark0
+                #     or nuisance_param.benchmark_neg != benchmark1
+                # ):
+                #     raise RuntimeError(
+                #         f"Inconsistent information for same nuisance parameter {nuisance_param_name}. "
+                #         f"Old: {nuisance_param}. "
+                #         f"New: {(systematics_name, benchmark0, benchmark1)}."
+                #     )
 
                 self.nuisance_parameters[nuisance_param_name] = NuisanceParameter(
                     name=nuisance_param_name,

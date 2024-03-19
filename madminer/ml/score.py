@@ -52,6 +52,7 @@ class ScoreEstimator(Estimator):
         t_xz,
         x_val=None,
         t_xz_val=None,
+        train_weights=None,
         optimizer="amsgrad",
         n_epochs=50,
         batch_size=128,
@@ -135,10 +136,15 @@ class ScoreEstimator(Estimator):
             Training and validation losses from LocalScoreTrainer.train
         """
 
-        if method not in ["sally", "sallino", "heteroskedastic_sally", "repulsive_ensemble_sally"]:
+        if method not in ["sally", "sallino", "sally_weighted", "heteroskedastic_sally", "repulsive_ensemble_sally"]:
             logger.warning("Method %s not allowed for score estimators. Using 'sally' instead.", method)
             method = "sally"
-
+        if method == "sally_weighted" and train_weights is None:
+            raise ValueError("Method sally_weighted requires train_weights to be given!")
+        if method in ["sally", "sallino"] and train_weights is not None:
+            logger.warning("Method %s does not support train_weights. Ignoring them.", method)
+            train_weights = None
+            
         logger.info("Starting training")
         logger.info("  Batch size:             %s", batch_size)
         logger.info("  Optimizer:              %s", optimizer)
@@ -160,12 +166,15 @@ class ScoreEstimator(Estimator):
         memmap_threshold = 1.0 if memmap else None
         x = load_and_check(x, memmap_files_larger_than_gb=memmap_threshold)
         t_xz = load_and_check(t_xz, memmap_files_larger_than_gb=memmap_threshold)
+        train_weights = load_and_check(train_weights, memmap_files_larger_than_gb=memmap_threshold)
 
         # Infer dimensions of problem
         n_samples = x.shape[0]
         n_observables = x.shape[1]
         n_parameters = t_xz.shape[1]
-        logger.info("Found %s samples with %s parameters and %s observables", n_samples, n_parameters, n_observables)
+        logger.info("Found %s samples with %s parameters and %s observables", n_samples, n_parameters, n_observables) 
+        if train_weights is not None:
+            assert train_weights.shape[0] == n_samples
 
         # Limit sample size
         if limit_samplesize is not None and limit_samplesize < n_samples:
@@ -218,7 +227,7 @@ class ScoreEstimator(Estimator):
             raise RuntimeError(f"Number of observables does not match: {n_observables} vs {self.n_observables}")
 
         # Data
-        data = self._package_training_data(x, t_xz)
+        data = self._package_training_data(x, t_xz, weights=train_weights)
         if external_validation:
             data_val = self._package_training_data(x_val, t_xz_val)
         else:
@@ -433,10 +442,12 @@ class ScoreEstimator(Estimator):
         )
 
     @staticmethod
-    def _package_training_data(x, t_xz):
+    def _package_training_data(x, t_xz, weights=None):
         data = OrderedDict()
         data["x"] = x
         data["t_xz"] = t_xz
+        if weights is not None:
+            data["weights"] = weights
         return data
 
     def _wrap_settings(self):
@@ -915,6 +926,9 @@ class RepulsiveEnsembleScoreEstimator(ScoreEstimator):
         # Calculate Fisher information
         logger.info("Calculating Fisher information")
         one_plus_deltaij = np.ones(fisher_dim) + np.eye(fisher_dim)
+        print(f"one_plus_deltaij: {one_plus_deltaij.shape}")
+        print(f"weights: {weights.shape}")
+        print(f"t_hats_mu: {t_hats_mu.shape}")
         if sum_events:
             fisher_information = float(n_events) * np.einsum("n,ni,nj->ij", weights, t_hats_mu, t_hats_mu)
             fisher_information_unc = np.einsum("ij,n,ni,nj->ij", one_plus_deltaij, weights, t_hats_mu2, t_hats_std2) \
@@ -930,7 +944,31 @@ class RepulsiveEnsembleScoreEstimator(ScoreEstimator):
         expected_score = np.mean(t_hats_mu, axis=0)
         logger.debug("Expected per-event score (should be close to zero): %s", expected_score)
 
+        print(f"fisher_information: {fisher_information.shape}")
+        print(f"fisher_information: {fisher_information}")
+        print(f"fisher_information_unc: {fisher_information_unc.shape}")
+        print(f"fisher_information_unc: {fisher_information_unc}")
         return fisher_information, fisher_information_unc
+
+    def _wrap_settings(self):
+        settings = super()._wrap_settings()
+        settings["estimator_type"] = "repulsive_ensemble_score"
+        settings["nuisance_mode_default"] = self.nuisance_mode_default
+        return settings
+
+    def _unwrap_settings(self, settings):
+        super()._unwrap_settings(settings)
+
+        estimator_type = str(settings["estimator_type"])
+        if estimator_type != "repulsive_ensemble_score":
+            raise RuntimeError(f"Saved model is an incompatible estimator type {estimator_type}.")
+
+        try:
+            self.nuisance_mode_default = str(settings["nuisance_mode_default"])
+        except KeyError:
+            self.nuisance_mode_default = "keep"
+            logger.warning("Did not find entry nuisance_mode_default in saved model, using default 'keep'.")
+        
         
 class BayesianScoreEstimator(ScoreEstimator):
     def train(

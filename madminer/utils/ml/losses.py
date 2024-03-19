@@ -84,14 +84,17 @@ def repulsive_ensemble_loss(outputs, t_true):
     # repulsive ensemble loss
     k = kernel(reg, reg.detach())
     reg_mean, reg_std = reg.mean(dim=1), reg.std(dim=1)
-    loss = torch.sum(reg_mean + (k.sum(dim=1) / k.detach().sum(dim=1) - 1) / len(mus), dim=0)
-    return loss
+    loss = torch.sum(reg_mean + (k.sum(dim=1) / k.detach().sum(dim=1) - 1) / len(mus), dim=0) # loss shape: (n_parameters)
+    return loss.sum()
 
 
 def bayesian_loss(model, outputs, t_true):
     nl = model.neg_log_gauss(outputs, t_true.reshape(-1))
     kl = model.KL(len(outputs))
     return nl + kl
+
+def local_score_mse_weighted(t_hat, t_true, weights):
+    return (weights * (t_hat - t_true) ** 2).mean()
 
 
 def flow_nll(log_p_pred, t_pred, t_true):

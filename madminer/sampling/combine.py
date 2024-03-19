@@ -127,13 +127,21 @@ def combine_and_shuffle(
         ) = load_madminer_settings(filename, include_nuisance_benchmarks=False)
 
         n_benchmarks = len(benchmarks)
-
         if n_signal_events_generated_per_benchmark is not None and n_background_events is not None:
             all_n_events_signal_per_benchmark += n_signal_events_generated_per_benchmark
             all_n_events_background += n_background_events
 
         for observations, weights, sampling_ids in load_events(filename, include_sampling_ids=True):
             logger.debug("Sampling benchmarks: %s", sampling_ids)
+            
+            # multiply weights by number of events per benchmark to get absolute weights
+            for i, sampling_id in enumerate(sampling_ids):
+                if sampling_id == -1:
+                    nevents = n_background_events
+                else:
+                    nevents = n_signal_events_generated_per_benchmark[sampling_id]
+                weights[i] *= nevents
+
             if all_observations is None:
                 all_observations = observations
                 all_weights = k_factor * weights
@@ -147,6 +155,14 @@ def combine_and_shuffle(
                 all_sampling_ids = np.hstack((all_sampling_ids, sampling_ids))
 
         logger.debug("Combined sampling benchmarks: %s", all_sampling_ids)
+
+    # normalize weights by number of events
+    for i, sampling_id in enumerate(all_sampling_ids):
+                if sampling_id == -1:
+                    nevents = all_n_events_background
+                else:
+                    nevents = all_n_events_signal_per_benchmark[sampling_id]
+                all_weights[i] /= nevents
 
     # Shuffle
     all_observations, all_weights, all_sampling_ids = shuffle(all_observations, all_weights, all_sampling_ids)
