@@ -573,6 +573,52 @@ class SingleParameterizedRatioTrainer(Trainer):
 
         return losses
 
+class RepulsiveEnsembeSingleParameterizedRatioTrainer(SingleParameterizedRatioTrainer):
+
+    def forward_pass(self, batch_data, loss_functions):
+        self._timer(start="fwd: move data")
+        n_channels = self.model.n_channels
+        theta = batch_data["theta"][None,:].clone().detach()
+        theta = theta.expand(n_channels,-1,-1)
+        theta = theta.to(self.device, self.dtype, non_blocking=True)
+        x = batch_data["x"][None,:].clone().detach()
+        x = x.expand(n_channels,-1,-1)
+        x = x.to(self.device, self.dtype, non_blocking=True)
+        x = x.to(self.device, self.dtype, non_blocking=True)
+        y = batch_data["y"][None,:].clone().detach()
+        y = y.expand(n_channels,-1,-1)
+        y = y.to(self.device, self.dtype, non_blocking=True)
+        try:
+            r_xz = batch_data["r_xz"][None,:].clone().detach()
+            r_xz = r_xz.expand(n_channels,-1,-1)
+            r_xz = r_xz.to(self.device, self.dtype, non_blocking=True)
+        except KeyError:
+            r_xz = None
+        try:
+            t_xz = batch_data["t_xz"][None,:].clone().detach()
+            t_xz = t_xz.expand(n_channels,-1,-1)
+            t_xz = t_xz.to(self.device, self.dtype, non_blocking=True)
+        except KeyError:
+            t_xz = None
+        self._timer(stop="fwd: move data", start="fwd: check for nans")
+        self._check_for_nans("Training data", x)
+        self._check_for_nans("Augmented training data", t_xz)
+        self._timer(start="fwd: model.forward", stop="fwd: check for nans")
+
+        if self.calculate_model_score:
+            theta.requires_grad = True
+            
+        s_hat, log_r_hat, t_hat = self.model(theta, x, track_score=self.calculate_model_score, return_grad_x=False)
+        self._timer(stop="fwd: model.forward", start="fwd: check for nans")
+        self._check_for_nans("Model output", t_hat)
+
+        self._timer(start="fwd: calculate losses", stop="fwd: check for nans")
+        losses = [loss_function(s_hat, log_r_hat, t_hat, None, y, r_xz, t_xz, None) for loss_function in loss_functions]
+        self._timer(stop="fwd: calculate losses", start="fwd: check for nans")
+        self._check_for_nans("Loss", *losses)
+        self._timer(stop="fwd: check for nans")
+
+        return losses
 
 class DoubleParameterizedRatioTrainer(Trainer):
     def __init__(self, model, run_on_gpu=True, double_precision=False, n_workers=8):

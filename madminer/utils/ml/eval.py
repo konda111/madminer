@@ -5,6 +5,7 @@ import torch
 from torch import tensor
 
 from madminer.utils.ml.models.ratio import DenseSingleParameterizedRatioModel
+from madminer.utils.ml.models.ratio import RepulsiveEnsembleDenseSingleParameterizedRatioModel
 from madminer.utils.ml.models.ratio import DenseDoublyParameterizedRatioModel
 
 logger = logging.getLogger(__name__)
@@ -77,7 +78,9 @@ def evaluate_ratio_model(
 
     # Figure out method type
     if method_type is None:
-        if isinstance(model, DenseSingleParameterizedRatioModel):
+        if isinstance(model, RepulsiveEnsembleDenseSingleParameterizedRatioModel):
+            method_type = "repulsive_parameterized"
+        elif isinstance(model, DenseSingleParameterizedRatioModel):
             method_type = "parameterized"
         elif isinstance(model, DenseDoublyParameterizedRatioModel):
             method_type = "doubly_parameterized"
@@ -100,6 +103,10 @@ def evaluate_ratio_model(
     if theta1s is not None:
         theta1s = torch.stack([tensor(theta1s[i % n_thetas], requires_grad=evaluate_score) for i in range(n_xs)])
     xs = torch.stack([tensor(i) for i in xs])
+    
+    if method_type == "repulsive_parameterized":
+        xs = xs[None,:].expand(model.n_channels,-1,-1)
+        theta0s = theta0s[None,:].expand(model.n_channels,-1,-1)
 
     model = model.to(device, dtype)
     theta0s = theta0s.to(device, dtype)
@@ -178,6 +185,8 @@ def evaluate_ratio_model(
                 s_hat, log_r_hat, _ = model(theta0s, xs, track_score=False, create_gradient_graph=False)
             elif method_type == "double_parameterized_ratio":
                 s_hat, log_r_hat, _, _ = model(theta0s, theta1s, xs, track_score=False, create_gradient_graph=False)
+            elif method_type == "repulsive_parameterized":
+                s_hat, log_r_hat, _ = model(theta0s, xs, track_score=False, create_gradient_graph=False)
             else:
                 raise ValueError("Unknown method type %s", method_type)
 
@@ -188,12 +197,20 @@ def evaluate_ratio_model(
 
             # Get data and return
             s_hat = s_hat.detach().numpy().flatten()
-            log_r_hat = log_r_hat.detach().numpy().flatten()
+            if method_type == "repulsive_parameterized":
+                log_r_hat_mean = log_r_hat.mean(dim=0).flatten().numpy()
+                log_r_hat_std = log_r_hat.std(dim=0).flatten().numpy()
+            else:
+                log_r_hat = log_r_hat.detach().numpy().flatten()
             t_hat0, t_hat1 = None, None
-
-    if return_grad_x:
-        return s_hat, log_r_hat, t_hat0, t_hat1, x_gradients
-    return s_hat, log_r_hat, t_hat0, t_hat1
+    if method_type == "repulsive_parameterized":
+        if return_grad_x:
+            return s_hat, log_r_hat, t_hat0, t_hat1, x_gradients, log_r_hat_std
+        return s_hat, log_r_hat_mean, t_hat0, t_hat1, log_r_hat_std
+    else:
+        if return_grad_x:
+            return s_hat, log_r_hat, t_hat0, t_hat1, x_gradients
+        return s_hat, log_r_hat, t_hat0, t_hat1
 
 
 def evaluate_local_score_model(model, xs=None, run_on_gpu=True, double_precision=False, return_grad_x=False):

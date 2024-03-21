@@ -8,6 +8,13 @@ from torch.nn import MSELoss
 
 logger = logging.getLogger(__name__)
 
+# RBF kernel with median estimator
+def kernel(x, y):
+    channels = len(x)
+    dim_score = x.shape[-1]
+    dnorm2 = (x.reshape(channels,1,-1, dim_score) - y.reshape(1,channels,-1, dim_score)).square().sum(dim=2)
+    sigma = torch.quantile(dnorm2.detach(), 0.5) / (2 * math.log(channels + 1))
+    return torch.exp(- dnorm2 / (2*sigma))
 
 def ratio_mse_num(s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true, t1_true, log_r_clip=10.0):
     r_true = torch.clamp(r_true, np.exp(-log_r_clip), np.exp(log_r_clip))
@@ -51,12 +58,19 @@ def ratio_xe(s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true, t1_true)
     return BCELoss()(s_hat, y_true)
 
 
-def ratio_augmented_xe(s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true, t1_true):
+def ratio_augmented_xe(s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true, t1_true, reduction='mean'):
     s_hat = 1.0 / (1.0 + torch.exp(log_r_hat))
     s_true = 1.0 / (1.0 + r_true)
+    return BCELoss(reduction=reduction)(s_hat, s_true)
 
-    return BCELoss()(s_hat, s_true)
-
+def repulsive_ratio_augmented_xe(s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true, t1_true):
+    # first compute ratio_augmented_xe loss
+    losses = ratio_augmented_xe(s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true, t1_true, reduction='none')
+    # repulsive ensemble loss
+    k = kernel(losses, losses.detach())
+    losses_mean, losses_std = losses.mean(dim=1), losses.std(dim=1)
+    loss = torch.sum(losses_mean + (k.sum(dim=1) / k.detach().sum(dim=1) - 1) / len(losses_mean), dim=0) # loss shape: (n_parameters)
+    return loss.sum()
 
 def local_score_mse(t_hat, t_true):
     return MSELoss()(t_hat, t_true)
@@ -68,15 +82,7 @@ def heteroskedastic_loss(outputs, t_true):
     out = torch.pow(mus - t_true.reshape(-1), 2)/(2 * logsigma2s.exp()) + 1/2. * logsigma2s
     return torch.mean(out)
 
-
 def repulsive_ensemble_loss(outputs, t_true):
-    # RBF kernel with median estimator
-    def kernel(x, y):
-        channels = len(x)
-        dim_score = x.shape[-1]
-        dnorm2 = (x.reshape(channels,1,-1, dim_score) - y.reshape(1,channels,-1, dim_score)).square().sum(dim=2)
-        sigma = torch.quantile(dnorm2.detach(), 0.5) / (2 * math.log(channels + 1))
-        return torch.exp(- dnorm2 / (2*sigma))
     # first compute heteroskedastic regression loss
     mus = outputs[:, :, :, 0]
     logsigma2s = outputs[:, :, :, 1]
@@ -86,7 +92,6 @@ def repulsive_ensemble_loss(outputs, t_true):
     reg_mean, reg_std = reg.mean(dim=1), reg.std(dim=1)
     loss = torch.sum(reg_mean + (k.sum(dim=1) / k.detach().sum(dim=1) - 1) / len(mus), dim=0) # loss shape: (n_parameters)
     return loss.sum()
-
 
 def bayesian_loss(model, outputs, t_true):
     nl = model.neg_log_gauss(outputs, t_true.reshape(-1))

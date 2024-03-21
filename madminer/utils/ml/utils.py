@@ -123,6 +123,10 @@ def get_loss(method, alpha):
         loss_functions = [losses.ratio_augmented_xe]
         loss_weights = [1.0]
         loss_labels = ["improved_xe"]
+    elif method in ["repulsive_alice"]:
+        loss_functions = [losses.repulsive_ratio_augmented_xe]
+        loss_weights = [1.0]
+        loss_labels = ["repulsive_improved_xe"]
     elif method == "alices":
         loss_functions = [losses.ratio_augmented_xe, losses.ratio_score_mse_num]
         loss_weights = [1.0, alpha]

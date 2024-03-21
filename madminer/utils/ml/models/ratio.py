@@ -6,6 +6,7 @@ import torch.nn as nn
 
 from torch.autograd import grad
 from madminer.utils.ml.utils import get_activation_function
+from madminer.utils.ml.layers import StackedLinear
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +97,95 @@ class DenseSingleParameterizedRatioModel(nn.Module):
         return self
 
 
+class RepulsiveEnsembleDenseSingleParameterizedRatioModel(DenseSingleParameterizedRatioModel):
+    """Modified version of RepulsiveEnsembleDenseSingleParameterizedRatioModel using repulsive ensemble."""
+
+    def __init__(
+        self, 
+        n_observables, 
+        n_hidden, 
+        n_parameters,
+        n_channels=100,
+        activation="tanh", 
+        dropout_prob=0.0):
+        super().__init__(
+            n_observables,
+            n_parameters,
+            n_hidden,
+            activation=activation,
+            dropout_prob=dropout_prob
+        )
+
+        # Save input
+        self.n_hidden = n_hidden
+        self.activation = get_activation_function(activation)
+        self.dropout_prob = dropout_prob
+        self.n_channels = n_channels
+
+        # Build network
+        self.layers = nn.ModuleList()
+        n_last = n_observables + n_parameters
+
+        # Hidden layers
+        for n_hidden_units in n_hidden:
+            if self.dropout_prob > 1.0e-9:
+                self.layers.append(nn.Dropout(self.dropout_prob))
+            self.layers.append(StackedLinear(n_last, n_hidden_units, n_channels))
+            n_last = n_hidden_units
+
+        # Log r layer
+        if self.dropout_prob > 1.0e-9:
+            self.layers.append(nn.Dropout(self.dropout_prob))
+        # output is the log likelihood ratio
+        self.layers.append(StackedLinear(n_last, 1, n_channels))
+        
+    def forward(self, theta, x, track_score=True, return_grad_x=False, create_gradient_graph=True):
+        """Calculates estimated log likelihood ratio and the derived score."""
+
+        # Track gradient wrt theta
+        if track_score and not theta.requires_grad:
+            theta.requires_grad = True
+
+        # Track gradient wrt x
+        if return_grad_x and not x.requires_grad:
+            x.requires_grad = True
+
+        # log r estimator
+        log_r_hat = torch.cat((theta, x), 2)
+        for i, layer in enumerate(self.layers):
+            if i > 0:
+                log_r_hat = self.activation(log_r_hat)
+            log_r_hat = layer(log_r_hat)
+
+        # Bayes-optimal s
+        s_hat = 1.0 / (1.0 + torch.exp(log_r_hat))
+
+        # Score t
+        if track_score:
+            (t_hat,) = grad(
+                log_r_hat,
+                theta,
+                grad_outputs=torch.ones_like(log_r_hat.data),
+                # grad_outputs=log_r_hat.data.new(log_r_hat.shape).fill_(1),
+                only_inputs=True,
+                create_graph=create_gradient_graph,
+            )
+        else:
+            t_hat = None
+
+        # Calculate gradient wrt x
+        if return_grad_x:
+            (x_gradient,) = grad(
+                log_r_hat,
+                x,
+                grad_outputs=torch.ones_like(log_r_hat.data),
+                only_inputs=True,
+                create_graph=create_gradient_graph,
+            )
+
+            return s_hat, log_r_hat, t_hat, x_gradient
+        return s_hat, log_r_hat, t_hat
+        
 class DenseDoublyParameterizedRatioModel(nn.Module):
     """Module that implements agnostic parameterized likelihood estimators such as RASCAL or ALICES. Both
     numerator and denominator of the ratio are parameterized."""
