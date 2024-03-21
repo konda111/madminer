@@ -460,6 +460,7 @@ class FisherInformation(DataAnalyzer):
         luminosity,
         observable,
         bins,
+        add_weights=None,
         histrange=None,
         cuts=None,
         efficiency_functions=None,
@@ -530,7 +531,7 @@ class FisherInformation(DataAnalyzer):
         weights_benchmarks = np.zeros((n_bins_total, self.n_benchmarks))
         weights_squared_benchmarks = np.zeros((n_bins_total, self.n_benchmarks))
 
-        for observations, weights in self.event_loader():
+        for i, (observations, weights) in enumerate(self.event_loader()):
             # Cuts
             cut_filter = [self._pass_cuts(obs_event, cuts) for obs_event in observations]
             observations = observations[cut_filter]
@@ -541,6 +542,16 @@ class FisherInformation(DataAnalyzer):
                 [self._eval_efficiency(obs_event, efficiency_functions) for obs_event in observations]
             )
             weights *= efficiencies[:, np.newaxis]
+            
+            # additional weights to prioritize certain events (e.g. via bkg-signal classifier score)
+            if add_weights is not None:
+                nbatch = len(weights)
+                if nbatch*(i + 1) < len(add_weights):
+                    add_weights_batch = add_weights[nbatch*i:nbatch*(i+1)]
+                else:
+                    add_weights_batch = add_weights[nbatch*i:]
+                weights *= add_weights_batch[:, np.newaxis]
+                weights /= np.sum(add_weights_batch)/nbatch
 
             # Evaluate histogrammed observable
             histo_observables = np.asarray([self._eval_observable(obs_event, observable) for obs_event in observations])
