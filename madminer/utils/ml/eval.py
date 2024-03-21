@@ -325,11 +325,12 @@ def evaluate_repulsive_ensemble_local_score_model(model, xs=None, run_on_gpu=Tru
     # Get data and return
     t_hat = t_hat.detach()
     t_hat = torch.reshape(t_hat, (model.n_channels, xs.shape[0], model.n_parameters, 2)) # bring outputs to shape (n_channels, n_data, n_parameters, 2)
-    # t_hat = t_hat.reshape(t_hat.shape[0], 2)
-    output = t_hat[:, :, :, 0]
-    t_hat_mu, t_hat_std = output.mean(dim=0).numpy(), output.std(dim=0).numpy()
+    output = t_hat[:, :, :, 0].numpy()
+    t_hat_mu = np.mean(output, axis=0)
+    m = output - output.sum(0,keepdims=True)/model.n_channels
+    t_hat_cov = np.einsum('ijk,ijl->jkl', m, m)/(model.n_channels)
     if return_grad_x:
         x_gradients = x_gradients.detach().numpy()
-        return t_hat_mu, t_hat_std, x_gradients
+        return t_hat_mu, t_hat_cov, x_gradients
 
-    return t_hat_mu, t_hat_std
+    return t_hat_mu, t_hat_cov

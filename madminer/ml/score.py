@@ -913,9 +913,8 @@ class RepulsiveEnsembleScoreEstimator(ScoreEstimator):
         n_samples = x.shape[0]
 
         # Estimate scores
-        t_hats_mu, t_hats_std = self.evaluate_score(x=x, theta=np.array([theta for _ in x]), nuisance_mode="keep")
+        t_hats_mu, t_hats_cov = self.evaluate_score(x=x, theta=np.array([theta for _ in x]), nuisance_mode="keep")
         t_hats_mu2 = t_hats_mu ** 2
-        t_hats_std2 = t_hats_std ** 2
         fisher_dim = t_hats_mu.shape[1]
 
         # Weights
@@ -925,30 +924,21 @@ class RepulsiveEnsembleScoreEstimator(ScoreEstimator):
 
         # Calculate Fisher information
         logger.info("Calculating Fisher information")
-        one_plus_deltaij = np.ones(fisher_dim) + np.eye(fisher_dim)
-        print(f"one_plus_deltaij: {one_plus_deltaij.shape}")
-        print(f"weights: {weights.shape}")
-        print(f"t_hats_mu: {t_hats_mu.shape}")
+        jacobian =   np.einsum("ij,nk->nijk", np.eye(fisher_dim), t_hats_mu) \
+                   + np.einsum("ik,nj->nijk", np.eye(fisher_dim), t_hats_mu)
         if sum_events:
             fisher_information = float(n_events) * np.einsum("n,ni,nj->ij", weights, t_hats_mu, t_hats_mu)
-            fisher_information_unc = np.einsum("ij,n,ni,nj->ij", one_plus_deltaij, weights, t_hats_mu2, t_hats_std2) \
-                                   + np.einsum("ij,n,nj,ni->ij", one_plus_deltaij, weights, t_hats_mu2, t_hats_std2)
-            fisher_information_unc = float(n_events) * np.sqrt(fisher_information_unc) 
+            # weights enter covariance matrix twice
+            fisher_information_cov = float(n_events) * np.einsum('n,nabc,ncd,ndef->abef', weights**2, jacobian, t_hats_cov, jacobian)
         else:
             fisher_information = float(n_events) * np.einsum("n,ni,nj->nij", weights, t_hats_mu, t_hats_mu)
-            fisher_information_unc = np.einsum("ij,n,ni,nj->nij", one_plus_deltaij, weights, t_hats_mu2, t_hats_std2) \
-                                   + np.einsum("ij,n,nj,ni->nij", one_plus_deltaij, weights, t_hats_mu2, t_hats_std2)
-            fisher_information_unc = float(n_events) * np.sqrt(fisher_information_unc) 
+            fisher_information_cov = float(n_events) * np.einsum('n,nabc,ncd,ndef->nabef', weights**2, jacobian, t_hats_cov, jacobian)
 
         # Calculate expected score
         expected_score = np.mean(t_hats_mu, axis=0)
         logger.debug("Expected per-event score (should be close to zero): %s", expected_score)
 
-        print(f"fisher_information: {fisher_information.shape}")
-        print(f"fisher_information: {fisher_information}")
-        print(f"fisher_information_unc: {fisher_information_unc.shape}")
-        print(f"fisher_information_unc: {fisher_information_unc}")
-        return fisher_information, fisher_information_unc
+        return fisher_information, fisher_information_cov
 
     def _wrap_settings(self):
         settings = super()._wrap_settings()
@@ -957,8 +947,7 @@ class RepulsiveEnsembleScoreEstimator(ScoreEstimator):
         return settings
 
     def _unwrap_settings(self, settings):
-        super()._unwrap_settings(settings)
-
+        Estimator._unwrap_settings(self, settings)
         estimator_type = str(settings["estimator_type"])
         if estimator_type != "repulsive_ensemble_score":
             raise RuntimeError(f"Saved model is an incompatible estimator type {estimator_type}.")
