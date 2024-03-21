@@ -11,7 +11,7 @@ from madminer.utils.various import sanitize_array
 from madminer.utils.various import mdot
 from madminer.utils.various import less_logging
 from madminer.ml import ParameterizedRatioEstimator
-from madminer.ml import ScoreEstimator
+from madminer.ml import ScoreEstimator, RepulsiveEnsembleScoreEstimator
 from madminer.ml import Ensemble
 from madminer.ml import load_estimator
 
@@ -228,9 +228,11 @@ class FisherInformation(DataAnalyzer):
         else:
             model_is_ensemble = False
             model = load_estimator(model_file)
-
             if isinstance(model, ParameterizedRatioEstimator):
                 model_type = "Parameterized Ratio Estimator"
+            elif isinstance(model, RepulsiveEnsembleScoreEstimator):
+                model_type = "Repulsive Ensemble Score Estimator"
+                model_is_ensemble = True
             elif isinstance(model, ScoreEstimator):
                 model_type = "Score Estimator"
             else:
@@ -379,7 +381,7 @@ class FisherInformation(DataAnalyzer):
                     )
                     covariance = None
 
-        # Returns
+        # Returns        
         if model_is_ensemble and calculate_covariance:
             return fisher_info_rate + fisher_info_kin, rate_covariance + covariance
         else:

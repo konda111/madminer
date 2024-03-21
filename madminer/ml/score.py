@@ -873,7 +873,15 @@ class RepulsiveEnsembleScoreEstimator(ScoreEstimator):
             n_channels=self.n_channels
         )
     
-    def calculate_fisher_information(self, x, theta=None, weights=None, n_events=1, sum_events=True):
+    def calculate_fisher_information(
+        self, 
+        x, 
+        theta=None, 
+        obs_weights=None, 
+        n_events=1, 
+        sum_events=True,
+        **kwargs
+    ):
         """
         Calculates the expected Fisher information matrix based on the kinematic information in a given number of
         events.
@@ -918,21 +926,21 @@ class RepulsiveEnsembleScoreEstimator(ScoreEstimator):
         fisher_dim = t_hats_mu.shape[1]
 
         # Weights
-        if weights is None:
-            weights = np.ones(n_samples)
-        weights /= np.sum(weights)
+        if obs_weights is None:
+            obs_weights = np.ones(n_samples)
+        obs_weights /= np.sum(obs_weights)
 
         # Calculate Fisher information
         logger.info("Calculating Fisher information")
         jacobian =   np.einsum("ij,nk->nijk", np.eye(fisher_dim), t_hats_mu) \
                    + np.einsum("ik,nj->nijk", np.eye(fisher_dim), t_hats_mu)
         if sum_events:
-            fisher_information = float(n_events) * np.einsum("n,ni,nj->ij", weights, t_hats_mu, t_hats_mu)
+            fisher_information = float(n_events) * np.einsum("n,ni,nj->ij", obs_weights, t_hats_mu, t_hats_mu)
             # weights enter covariance matrix twice
-            fisher_information_cov = float(n_events) * np.einsum('n,nabc,ncd,ndef->abef', weights**2, jacobian, t_hats_cov, jacobian)
+            fisher_information_cov = float(n_events) * np.einsum('n,nabc,ncd,ndef->abef', obs_weights**2, jacobian, t_hats_cov, jacobian)
         else:
-            fisher_information = float(n_events) * np.einsum("n,ni,nj->nij", weights, t_hats_mu, t_hats_mu)
-            fisher_information_cov = float(n_events) * np.einsum('n,nabc,ncd,ndef->nabef', weights**2, jacobian, t_hats_cov, jacobian)
+            fisher_information = float(n_events) * np.einsum("n,ni,nj->nij", obs_weights, t_hats_mu, t_hats_mu)
+            fisher_information_cov = float(n_events) * np.einsum('n,nabc,ncd,ndef->nabef', obs_weights**2, jacobian, t_hats_cov, jacobian)
 
         # Calculate expected score
         expected_score = np.mean(t_hats_mu, axis=0)
