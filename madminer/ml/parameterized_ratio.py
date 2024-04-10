@@ -563,7 +563,7 @@ class MorphParameterizedRatioEstimator(ConditionalEstimator):
         memmap=False,
         verbose="some",
         scale_parameters=True,
-        n_workers=0,
+        n_workers=8,
         clip_gradient=None,
         early_stopping_patience=None,
     ):
@@ -597,7 +597,6 @@ class MorphParameterizedRatioEstimator(ConditionalEstimator):
         # Load training data
         logger.info("Loading training data")
         memmap_threshold = 1.0 if memmap else None
-
         x = load_and_check(x, memmap_files_larger_than_gb=memmap_threshold)
         y = load_and_check(y, memmap_files_larger_than_gb=memmap_threshold)
         r_xz = load_and_check(r_xz, memmap_files_larger_than_gb=memmap_threshold)
@@ -666,6 +665,7 @@ class MorphParameterizedRatioEstimator(ConditionalEstimator):
 
         # Data
         data = self._package_training_data(method, x,y, r_xz, t_xz)
+        #import ipdb; ipdb.set_trace()
         if external_validation:
             data_val = self._package_training_data(method, x_val, y_val, r_xz_val, t_xz_val)
         else:

@@ -127,7 +127,7 @@ def combine_and_shuffle(
             _,
             _,
         ) = load_madminer_settings(filename, include_nuisance_benchmarks=False)
-
+        #import ipdb; ipdb.set_trace()
         n_benchmarks = len(benchmarks)
 
         if n_signal_events_generated_per_benchmark is not None and n_background_events is not None:

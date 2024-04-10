@@ -996,7 +996,9 @@ class PhysicsMorpher:
 
         return np.array(component_weights)
     def optimize_basis_cs(
-        self
+        self,
+        lim = 10,
+        trials = 100,
     ):
         """
 
@@ -1016,9 +1018,17 @@ class PhysicsMorpher:
         #Define in here the morphing 
         # Save
         #Propose a basis, then minimize with scipy thing
+        logger.info(f"Optimizing with limit set as {lim}, n_trials set as {trials}")
         n_benchmark_points = len(self.components)-1
-        basis_proposal = np.random.uniform(-10,10,n_benchmark_points*len(self.components[0]))
-        best_basis = minimize(self.cs_morphing_matrix_condition,basis_proposal)["x"]
+        for j in range(trials):
+            basis_proposal = np.random.uniform(-lim,lim,n_benchmark_points*len(self.components[0]))
+            weight = self.cs_weight_minim(basis_proposal,lim)
+            if j == 0:
+                ws = weight
+                best_basis = basis_proposal
+            if weight < ws:
+                ws = weight
+                best_basis = basis_proposal
         best_basis = np.insert(best_basis,0,np.zeros(len(self.components[0])))
         best_basis = best_basis.reshape(n_benchmark_points+1,len(self.components[0]))
         self.basis = best_basis
@@ -1042,68 +1052,11 @@ class PhysicsMorpher:
 
         # Normal output
         return best_basis
-    
-
-    def optimize_basis_cs_2(
-        self
-    ):
-        """
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        """
-
-        # Check all data is there
-        if self.components is None or self.n_components is None or self.n_components <= 0:
-            raise RuntimeError(
-                "No components defined. Use morpher.set_components() or morpher.find_components() first!"
-            )
-
-        #Define in here the morphing 
-        # Save
-        #Propose a basis, then minimize with scipy thing
-        n_benchmark_points = len(self.components)-1
-        best_basis = np.random.uniform(-10,10,n_benchmark_points*len(self.components[0]))
-        best_basis = np.insert(best_basis,0,np.zeros(len(self.components[0])))
-        best_basis = best_basis.reshape(n_benchmark_points+1,len(self.components[0]))
-        self.basis = best_basis
-        self.cs_basis = best_basis
-        # GoldMine output
-        # A bit hardcoded here but I want to fix as first benchmark point the standard model
-        if self.use_madminer_interface:
-            basis_madminer = OrderedDict()
-
-            for i, benchmark in enumerate(best_basis):
-                if i == 0:
-                    benchmark_name = "SM"
-                else:
-                    benchmark_name = f"morphing_basis_vector_{len(basis_madminer)}"
-                parameter = OrderedDict()
-                for p, p_name in enumerate(self.parameter_names):
-                    parameter[p_name] = benchmark[p]
-                basis_madminer[benchmark_name] = parameter
-
-            return basis_madminer
-
-        # Normal output
-        return best_basis
-
-
-    def cs_morphing_matrix_condition(self,basis):
-
-        comps = self.components #These are the coefficient powers of theta. Starting from this we can build the actual cs morpher
-        n_benchmark_points = len(comps)-1
-        basis = np.reshape(basis,(n_benchmark_points,len(comps[0])))
-        matrix = []
-        for j in range(n_benchmark_points):
-            matrix.append([np.prod(basis[j]**c)for c in comps[1:len(comps)]])
-        return np.linalg.cond(matrix)
     
     def optimize_basis_ratio(
         self,
+        lim = 10,
+        trials = 100,
     ):
         """
 
@@ -1120,21 +1073,25 @@ class PhysicsMorpher:
                 "No components defined. Use morpher.set_components() or morpher.find_components() first!"
             )
 
-        # Define in here the morphing 
-        # Save
-        # Propose a basis, then minimize with scipy
         n_benchmark_points = len(self.components)-1
-        basis_proposal = np.random.uniform(-10,10,n_benchmark_points*len(self.components[0]))
-        best_basis = minimize(self.ratio_morphing_matrix_condition,basis_proposal,method="Nelder-Mead")["x"]
+        logger.info(f"Optimizing with limit set as {lim}, n_trials set as {trials}")
+        for j in range(trials):
+            basis_proposal = np.random.uniform(-2*lim,2*lim,n_benchmark_points*len(self.components[0]))
+            weight = self.ratio_weight_minim(basis_proposal,lim)
+            if j == 0:
+                ws = weight
+                best_basis = basis_proposal
+            if weight < ws:
+                ws = weight
+                best_basis = basis_proposal
         best_basis = np.insert(best_basis,0,np.zeros(len(self.components[0])))
         best_basis = best_basis.reshape(n_benchmark_points+1,len(self.components[0]))
         self.basis = best_basis
-        self.morphing_matrix = self.calculate_morphing_matrix(self.basis)
+        self.morphing_matrix = self.calculate_morphing_matrix_2(self.basis)
         # GoldMine output
         # A bit hardcoded here but I want to fix as first benchmark point the standard model
         if self.use_madminer_interface:
             basis_madminer = OrderedDict()
-
             for i, benchmark in enumerate(best_basis):
                 if i == 0:
                     benchmark_name = "SM"
@@ -1148,34 +1105,66 @@ class PhysicsMorpher:
 
         # Normal output
         return best_basis
+    
+    def ratio_weight_minim(self,basis,lim):
+        comps = self.components #These are the coefficient powers of theta.
+        n_benchmark_points = len(comps)-1 #I only care about the error propagation not involving the SM point
+        basis = np.reshape(basis,(n_benchmark_points,len(comps[0])))
 
-    def ratio_morphing_matrix_condition(self,basis):
+        lin_spaces = [np.linspace(-lim, lim, 10) for _ in range(len(comps[0]))]
+        meshgrids = np.meshgrid(*lin_spaces)
+        grid = np.vstack([meshgrid.flatten() for meshgrid in meshgrids]).T
+
+        for j,elem in enumerate(grid):
+            if j == 0:
+                worst = np.sqrt(np.sum((self.compute_weight_2(elem,basis))**2))
+            else:
+                out = np.sqrt(np.sum((self.compute_weight_2(elem,basis))**2))
+                if out > worst:
+                    worst = out
+        return worst
+
+    def cs_weight_minim(self,basis,lim):
         comps = self.components #These are the coefficient powers of theta.
         n_benchmark_points = len(comps)-1
         basis = np.reshape(basis,(n_benchmark_points,len(comps[0])))
-        matrix = []
-        for j in range(n_benchmark_points):
-            matrix.append(np.asarray([np.prod(basis[j]**c)for c in comps[1:len(comps)]])/self.reduced_sigma_morphing(basis[j]))
-        return np.linalg.cond(matrix)
-    
-    def calculate_morphing_matrix_2(self,basis):
-        comps = self.components #These are the coefficient powers of theta.
-        n_benchmark_points = len(comps)
-        matrix = []
-        for j in range(n_benchmark_points):
-            matrix.append(np.asarray([np.prod(basis[j]**c)for c in comps[0:len(comps)]])/self.reduced_sigma_morphing(basis[j]))
-        return (matrix)
+        lin_spaces = [np.linspace(-lim, lim, 10) for _ in range(len(comps[0]))]
+        meshgrids = np.meshgrid(*lin_spaces)
+        grid = np.vstack([meshgrid.flatten() for meshgrid in meshgrids]).T
+        for j,elem in enumerate(grid):
+            if j == 0:
+                worst = np.sqrt(np.sum((self.compute_weight_no_sigma_2(elem,basis))**2))
+            else:
+                out = np.sqrt(np.sum((self.compute_weight_no_sigma_2(elem,basis))**2))
+                if out > worst:
+                    worst = out
+        return worst
+
+
     
     def compute_weight(self,theta):
         comps = self.components #These are the coefficient powers of theta.
         basis = self.basis
-        cs_basis = self.cs_basis
+
         n_benchmark_points = len(comps)
         matrix = []
         for j in range(n_benchmark_points):
             matrix.append(np.asarray([np.prod(basis[j]**c)for c in comps[0:len(comps)]])/self.reduced_sigma_morphing(basis[j]))
+
         
         return ((np.asarray([np.prod(theta**c)for c in comps[0:len(comps)]])/self.reduced_sigma_morphing(theta))@np.linalg.inv(matrix))
+    
+    def compute_weight_2(self,theta,base):
+        comps = self.components #These are the coefficient powers of theta.
+        basis = base
+
+        n_benchmark_points = len(comps)-1
+        matrix = []
+        for j in range(n_benchmark_points):
+            matrix.append(np.asarray([np.prod(basis[j]**c)for c in comps[1:len(comps)]])/self.reduced_sigma_morphing(basis[j]))
+        
+        return ((np.asarray([np.prod(theta**c)for c in comps[1:len(comps)]])/self.reduced_sigma_morphing(theta))@np.linalg.inv(matrix))
+
     def compute_weight_no_sigma(self,theta):
         comps = self.components #These are the coefficient powers of theta.
         basis = self.cs_basis
@@ -1183,8 +1172,24 @@ class PhysicsMorpher:
         matrix = []
         for j in range(n_benchmark_points):
             matrix.append(np.asarray([np.prod(basis[j]**c)for c in comps[0:len(comps)]]))
-        
-        return np.sum((np.asarray([np.prod(theta**c)for c in comps[0:len(comps)]])@np.linalg.inv(matrix))**2)
+        return ((np.asarray([np.prod(theta**c)for c in comps[0:len(comps)]])@np.linalg.inv(matrix)))
+    
+    def compute_weight_no_sigma_2(self,theta, base):
+        comps = self.components #These are the coefficient powers of theta.
+        basis = base
+
+        n_benchmark_points = len(comps)-1
+        matrix = []
+        first = np.zeros(len(comps))
+        first[0] = 1
+        matrix.append(first)
+
+        for j in range(n_benchmark_points):
+            matrix.append(np.asarray([np.prod(basis[j]**c)for c in comps[0:len(comps)]]))
+        basis1 = np.insert(basis,0,np.zeros(len(comps[0]))).reshape(basis.shape[0]+1,basis.shape[1])
+        #import ipdb; ipdb.set_trace()
+        return ((np.asarray([np.prod(theta**c)for c in comps[0:len(comps)]])@np.linalg.inv(matrix))**2)
+
     def set_reduced(self,reduced):
         self.reduced_cs = np.asarray(reduced)
     
@@ -1203,6 +1208,21 @@ class PhysicsMorpher:
             matrix.append([np.prod(self.cs_basis[j]**c)for c in comps[0:len(comps)]])
         sigma_coefficients = np.linalg.inv(matrix)@reds
         return [np.prod(theta**c)for c in comps[0:len(comps)]]@sigma_coefficients
+    def calculate_morphing_matrix_2(self,basis):
+        comps = self.components
+        n_benchmark_points = len(comps)
+        matrix = []
+        for j in range(n_benchmark_points):
+            matrix.append(np.asarray([np.prod(basis[j]**c)for c in comps[0:len(comps)]])/self.reduced_sigma_morphing(basis[j]))
+        return matrix
+    def calculate_morphing_matrix_3(self,basis):
+        comps = self.components
+        n_benchmark_points = len(comps)
+        matrix = []
+        for j in range(n_benchmark_points):
+            matrix.append(np.asarray([np.prod(basis[j]**c)for c in comps[0:len(comps)]]))
+        return matrix
+
 
 
 

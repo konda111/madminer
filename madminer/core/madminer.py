@@ -372,7 +372,9 @@ class MadMiner:
 
     def cs_set_morphing(
         self,
-        max_overall_power=4
+        max_overall_power=4,
+        lim = 10,
+        trials = 100,
     ):
         """
         Function that sets the optimal morphing for the reduced cross sections.
@@ -390,7 +392,7 @@ class MadMiner:
 
         morpher = PhysicsMorpher(parameters_from_madminer=self.parameters)
         morpher.find_components(max_overall_power)
-        basis = morpher.optimize_basis_cs()
+        basis = morpher.optimize_basis_cs(lim,trials)
         basis.update(self.benchmarks)
 
         self.set_benchmarks(basis, verbose=False)
@@ -400,40 +402,12 @@ class MadMiner:
         logger.info(
             "Testing out"
         )
-    def cs_set_morphing_2(
-        self,
-        max_overall_power=4
-    ):
-        """
-        Function that sets the optimal morphing for the reduced cross sections.
-        Parameters
-        ----------
-        max_overall_power: value of degree of polynomial of EFT
-
-        Returns
-        -------
-            None
-
-        """
-
-        logger.info("Optimizing basis for morphing the cross sections only")
-
-        morpher = PhysicsMorpher(parameters_from_madminer=self.parameters)
-        morpher.find_components(max_overall_power)
-        basis = morpher.optimize_basis_cs_2()
-        basis.update(self.benchmarks)
-
-        self.set_benchmarks(basis, verbose=False)
-        self.morpher = morpher
-        self.export_morphing = True
-
-        logger.info(
-            "Testing out"
-        )
-
+    
     def ratio_set_morphing(
         self,
-        max_overall_power=4
+        max_overall_power=4,
+        lim = 10,
+        trials = 100,
     ):
         """
         Function that sets the optimal morphing for the ratio.
@@ -452,7 +426,7 @@ class MadMiner:
         morpher = self.morpher
         morpher.find_components(max_overall_power)
 
-        basis = morpher.optimize_basis_ratio()
+        basis = morpher.optimize_basis_ratio(lim,trials)
         self.benchmarks=OrderedDict()
         basis.update(self.benchmarks)
         self.set_benchmarks(basis, verbose=False)
