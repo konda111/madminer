@@ -1,0 +1,29 @@
+13:38 madminer.utils.inter INFO    HDF5 file does not contain nuisance parameters information
+13:38 madminer.utils.inter INFO    HDF5 file does not contain finite difference information
+13:38 madminer.utils.inter INFO    HDF5 file does not contain observables information
+13:38 madminer.utils.inter INFO    HDF5 file does not contain sample summary information
+13:38 madminer.utils.inter INFO    HDF5 file does not contain sample information
+13:38 madminer.utils.inter INFO    HDF5 file does not contain systematic information
+13:38 madminer.core.madmin INFO    Found 2 parameters:
+13:38 madminer.core.madmin INFO       CWL2 (LHA: dim6 2, Power: 2, Range: (0.0, 1.0))
+13:38 madminer.core.madmin INFO       CPWL2 (LHA: dim6 5, Power: 2, Range: (0.0, 1.0))
+13:38 madminer.core.madmin INFO    Found 6 benchmarks:
+13:38 madminer.core.madmin INFO       SM: CWL2 = 0.00e+00, CPWL2 = 0.00e+00
+13:38 madminer.core.madmin INFO       morphing_basis_vector_1: CWL2 = 75.18, CPWL2 = 16.93
+13:38 madminer.core.madmin INFO       morphing_basis_vector_2: CWL2 = -7.25e+01, CPWL2 = 36.31
+13:38 madminer.core.madmin INFO       morphing_basis_vector_3: CWL2 = 5.58, CPWL2 = 90.38
+13:38 madminer.core.madmin INFO       morphing_basis_vector_4: CWL2 = -7.42e+01, CPWL2 = -6.77e+01
+13:38 madminer.core.madmin INFO       morphing_basis_vector_5: CWL2 = 57.55, CPWL2 = -4.57e+01
+13:38 madminer.core.madmin INFO    Found morphing setup with 6 components
+13:38 madminer.core.madmin INFO    Did not find systematics setup.
+13:38 madminer.utils.inter INFO    HDF5 file does not contain nuisance parameters information
+13:38 madminer.utils.inter INFO    HDF5 file does not contain finite difference information
+13:38 madminer.utils.inter INFO    HDF5 file does not contain observables information
+13:38 madminer.utils.inter INFO    HDF5 file does not contain sample summary information
+13:38 madminer.utils.inter INFO    HDF5 file does not contain sample information
+13:38 madminer.utils.inter INFO    HDF5 file does not contain systematic information
+Traceback (most recent call last):
+  File "/remote/gpu02/crescenzo/MadMiner/examples/notebooks_morphing/2_cs_analysis_ratio_morphing.py", line 30, in <module>
+    if j == int(os.environ["NUM"]):
+            ^^^^^^^^^^^^^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: ''

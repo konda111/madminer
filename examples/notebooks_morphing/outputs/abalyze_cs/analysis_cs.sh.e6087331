@@ -1,0 +1,78 @@
+13:40 madminer.utils.inter INFO    HDF5 file does not contain nuisance parameters information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain finite difference information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain observables information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain sample summary information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain sample information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain systematic information
+13:40 madminer.core.madmin INFO    Found 2 parameters:
+13:40 madminer.core.madmin INFO       CWL2 (LHA: dim6 2, Power: 2, Range: (0.0, 1.0))
+13:40 madminer.core.madmin INFO       CPWL2 (LHA: dim6 5, Power: 2, Range: (0.0, 1.0))
+13:40 madminer.core.madmin INFO    Found 6 benchmarks:
+13:40 madminer.core.madmin INFO       SM: CWL2 = 0.00e+00, CPWL2 = 0.00e+00
+13:40 madminer.core.madmin INFO       morphing_basis_vector_1: CWL2 = 75.18, CPWL2 = 16.93
+13:40 madminer.core.madmin INFO       morphing_basis_vector_2: CWL2 = -7.25e+01, CPWL2 = 36.31
+13:40 madminer.core.madmin INFO       morphing_basis_vector_3: CWL2 = 5.58, CPWL2 = 90.38
+13:40 madminer.core.madmin INFO       morphing_basis_vector_4: CWL2 = -7.42e+01, CPWL2 = -6.77e+01
+13:40 madminer.core.madmin INFO       morphing_basis_vector_5: CWL2 = 57.55, CPWL2 = -4.57e+01
+13:40 madminer.core.madmin INFO    Found morphing setup with 6 components
+13:40 madminer.core.madmin INFO    Did not find systematics setup.
+13:40 madminer.utils.inter INFO    HDF5 file does not contain nuisance parameters information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain finite difference information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain observables information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain sample summary information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain sample information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain systematic information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain nuisance parameters information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain finite difference information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain observables information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain sample summary information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain sample information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain systematic information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain nuisance parameters information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain finite difference information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain observables information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain sample summary information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain sample information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain systematic information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain nuisance parameters information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain finite difference information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain observables information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain sample summary information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain sample information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain systematic information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain nuisance parameters information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain finite difference information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain observables information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain sample summary information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain sample information
+13:40 madminer.utils.inter INFO    HDF5 file does not contain systematic information
+13:40 madminer.lhe.lhe_rea INFO    Analysing LHE sample mg_processes/signal_4/Events/run_01/unweighted_events.lhe.gz: Calculating 1 observables, requiring 0 selection cuts, using 0 efficiency factors, associated with no systematics
+13:56 madminer.utils.inter INFO      Processing event 100000/100000
+13:56 madminer.lhe.lhe_rea INFO    Analysed number of events per sampling benchmark:
+13:56 madminer.lhe.lhe_rea INFO      100000 from morphing_basis_vector_4
+13:56 madminer.analysis.da INFO    Loading data from data/lhe_data_4.h5
+13:56 madminer.utils.inter INFO    HDF5 file does not contain nuisance parameters information
+13:56 madminer.utils.inter INFO    HDF5 file does not contain finite difference information
+13:56 madminer.utils.inter INFO    HDF5 file does not contain systematic information
+13:56 madminer.analysis.da INFO    Found 2 parameters
+13:56 madminer.analysis.da INFO      0: CWL2 (LHA: dim6 2, Power: 2, Range: (0.0, 1.0))
+13:56 madminer.analysis.da INFO      1: CPWL2 (LHA: dim6 5, Power: 2, Range: (0.0, 1.0))
+13:56 madminer.analysis.da INFO    Did not find nuisance parameters
+13:56 madminer.analysis.da INFO    Found 6 benchmarks
+13:56 madminer.analysis.da INFO    Found 1 observables
+13:56 madminer.analysis.da INFO    Found 100000 events
+13:56 madminer.analysis.da INFO      0 signal events sampled from benchmark SM
+13:56 madminer.analysis.da INFO      0 signal events sampled from benchmark morphing_basis_vector_1
+13:56 madminer.analysis.da INFO      0 signal events sampled from benchmark morphing_basis_vector_2
+13:56 madminer.analysis.da INFO      0 signal events sampled from benchmark morphing_basis_vector_3
+13:56 madminer.analysis.da INFO      100000 signal events sampled from benchmark morphing_basis_vector_4
+13:56 madminer.analysis.da INFO      0 signal events sampled from benchmark morphing_basis_vector_5
+13:56 madminer.analysis.da INFO    Found morphing setup with 6 components
+13:56 madminer.analysis.da INFO    Did not find nuisance morphing setup
+13:56 madminer.sampling.sa INFO    Starting cross-section calculation
+13:56 madminer.utils.inter INFO    HDF5 file does not contain nuisance parameters information
+13:56 madminer.utils.inter INFO    HDF5 file does not contain finite difference information
+13:56 madminer.utils.inter INFO    HDF5 file does not contain observables information
+13:56 madminer.utils.inter INFO    HDF5 file does not contain sample summary information
+13:56 madminer.utils.inter INFO    HDF5 file does not contain sample information
+13:56 madminer.utils.inter INFO    HDF5 file does not contain systematic information
