@@ -146,4 +146,4 @@ run_sphinx.sh
 publish.sh
 
 #Testing_samples
-examples_test/
+examples_tests/
