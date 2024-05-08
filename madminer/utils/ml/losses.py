@@ -63,14 +63,15 @@ def ratio_augmented_xe(s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true
     s_true = 1.0 / (1.0 + r_true)
     return BCELoss(reduction=reduction)(s_hat, s_true)
 
-def repulsive_ratio_augmented_xe(s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true, t1_true):
+def repulsive_ratio_augmented_xe(s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true, t1_true, data_len):
     # first compute ratio_augmented_xe loss
     losses = ratio_augmented_xe(s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true, t1_true, reduction='none')
+    n_channels = losses.shape[0]
     # repulsive ensemble loss
     k = kernel(losses, losses.detach())
     losses_mean, losses_std = losses.mean(dim=1), losses.std(dim=1)
-    loss = torch.sum(losses_mean + (k.sum(dim=1) / k.detach().sum(dim=1) - 1) / len(losses_mean), dim=0) # loss shape: (n_parameters)
-    return loss.sum()
+    loss = torch.sum(losses_mean + (k.sum(dim=1) / k.detach().sum(dim=1) - 1) / data_len, dim=0) # loss shape: (n_parameters)
+    return loss.sum()/n_channels
 
 def local_score_mse(t_hat, t_true):
     return MSELoss()(t_hat, t_true)
@@ -93,18 +94,15 @@ def repulsive_ensemble_loss(outputs, t_true):
     loss = torch.sum(reg_mean + (k.sum(dim=1) / k.detach().sum(dim=1) - 1) / len(mus), dim=0) # loss shape: (n_parameters)
     return loss.sum()
 
-def repulsive_ensemble_mse(outputs, t_true, data_len):
-    mus = outputs[:, :, :, 0]
-    return MSELoss()(mus, t_true)
-
 def repulsive_ensemble_mse_loss(outputs, t_true, data_len):
     mus = outputs[:, :, :, 0]
     reg = torch.pow(mus - t_true.reshape(mus.shape), 2)
     # repulsive ensemble loss
     k = kernel(reg, reg.detach())
+    n_channels = reg.shape[0]
     reg_mean, reg_std = reg.mean(dim=1), reg.std(dim=1)
     loss = torch.sum(reg_mean + (k.sum(dim=1) / k.detach().sum(dim=1) - 1) / data_len, dim=0) # loss shape: (n_parameters)
-    return loss.sum()
+    return loss.sum()/n_channels
 
 def bayesian_loss(model, outputs, t_true):
     nl = model.neg_log_gauss(outputs, t_true.reshape(-1))

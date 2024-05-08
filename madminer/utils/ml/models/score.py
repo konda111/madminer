@@ -189,7 +189,6 @@ class BayesianDenseLocalScoreModel(DenseLocalScoreModel):
             vb_layer = VBLinear(n_last, n_hidden_units)
             self.vb_layers.append(vb_layer)
             self.layers.append(vb_layer)
-            self.layers.append(nn.ReLU())
             n_last = n_hidden_units
 
         # Log r layer

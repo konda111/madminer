@@ -614,7 +614,7 @@ class RepulsiveEnsembeSingleParameterizedRatioTrainer(SingleParameterizedRatioTr
         self._check_for_nans("Model output", t_hat)
 
         self._timer(start="fwd: calculate losses", stop="fwd: check for nans")
-        losses = [loss_function(s_hat, log_r_hat, t_hat, None, y, r_xz, t_xz, None) for loss_function in loss_functions]
+        losses = [loss_function(s_hat, log_r_hat, t_hat, None, y, r_xz, t_xz, None, self.data_len) for loss_function in loss_functions]
         self._timer(stop="fwd: calculate losses", start="fwd: check for nans")
         self._check_for_nans("Loss", *losses)
         self._timer(stop="fwd: check for nans")
