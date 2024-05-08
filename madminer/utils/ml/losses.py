@@ -93,6 +93,19 @@ def repulsive_ensemble_loss(outputs, t_true):
     loss = torch.sum(reg_mean + (k.sum(dim=1) / k.detach().sum(dim=1) - 1) / len(mus), dim=0) # loss shape: (n_parameters)
     return loss.sum()
 
+def repulsive_ensemble_mse(outputs, t_true, data_len):
+    mus = outputs[:, :, :, 0]
+    return MSELoss()(mus, t_true)
+
+def repulsive_ensemble_mse_loss(outputs, t_true, data_len):
+    mus = outputs[:, :, :, 0]
+    reg = torch.pow(mus - t_true.reshape(mus.shape), 2)
+    # repulsive ensemble loss
+    k = kernel(reg, reg.detach())
+    reg_mean, reg_std = reg.mean(dim=1), reg.std(dim=1)
+    loss = torch.sum(reg_mean + (k.sum(dim=1) / k.detach().sum(dim=1) - 1) / data_len, dim=0) # loss shape: (n_parameters)
+    return loss.sum()
+
 def bayesian_loss(model, outputs, t_true):
     nl = model.neg_log_gauss(outputs, t_true.reshape(-1))
     kl = model.KL(len(outputs))

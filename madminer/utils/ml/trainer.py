@@ -68,6 +68,7 @@ class Trainer:
         logger.debug("Initialising training data")
         self.check_data(data)
         self.report_data(data)
+        self.data_len = len(data['x'])
         if data_val is not None:
             logger.debug("Found external validation data set")
             self.check_data(data_val)
@@ -741,13 +742,13 @@ class RepulsiveEnsembeLocalScoreTrainer(Trainer):
 
         self._timer(start="fwd: model.forward", stop="fwd: check for nans")
         t_hat = self.model(x)
-        t_hat = torch.reshape(t_hat, (n_channels, batch_data["x"].shape[0], self.model.n_parameters, 2)) # bring outputs to shape (n_channels, n_data, n_parameters, 2)
+        t_hat = torch.reshape(t_hat, (n_channels, batch_data["x"].shape[0], self.model.n_parameters, 1)) # bring outputs to shape (n_channels, n_data, n_parameters, 2)
         self._timer(stop="fwd: model.forward", start="fwd: check for nans")
         self._check_for_nans("Model output", t_hat)
 
         self._timer(start="fwd: calculate losses", stop="fwd: check for nans")
          # bring outputs to shape [[mu_1, sigma_1], [mu_2, sigma_2], ...]
-        losses = [loss_function(t_hat, t_xz) for loss_function in loss_functions]
+        losses = [loss_function(t_hat, t_xz, self.data_len) for loss_function in loss_functions]
         self._timer(stop="fwd: calculate losses", start="fwd: check for nans")
         self._check_for_nans("Loss", *losses)
         self._timer(stop="fwd: check for nans")
