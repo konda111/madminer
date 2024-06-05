@@ -136,6 +136,8 @@ examples/tutorial_particle_physics/models
 
 examples/tutorial_toy_simulator/data
 examples/tutorial_toy_simulator/models
+examples/tutorial_toy_simulator/data2
+examples/tutorial_toy_simulator/models2
 
 # MG / Pythia / Delphes patch
 patches/
