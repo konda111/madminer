@@ -63,6 +63,34 @@ def ratio_augmented_xe(s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true
     s_true = 1.0 / (1.0 + r_true)
     return BCELoss(reduction=reduction)(s_hat, s_true)
 
+def my_ratio_augmented_xe(model, s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true, t1_true, reduction='mean'):
+    s_hat = 1.0 / (1.0 + torch.exp(log_r_hat))
+    s_true = 1.0 / (1.0 + r_true)
+    return BCELoss(reduction=reduction)(s_hat, s_true)
+
+def bayesian_ratio_loss_nl(model, s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true, t1_true, log_r_clip=10.0):
+    s_hat = 1.0 / (1.0 + torch.exp(log_r_hat))
+    s_true = 1.0 / (1.0 + r_true)
+    # r_true = torch.clamp(r_true, np.exp(-log_r_clip), np.exp(log_r_clip))
+    # log_r_hat = torch.clamp(log_r_hat, np.exp(-log_r_clip), np.exp(log_r_clip))
+    # return model.neg_log_gauss(log_r_hat, r_true.reshape(-1))
+    return model.neg_log_gauss(s_hat, s_true.reshape(-1))
+
+def bayesian_ratio_loss_kl(model, s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true, t1_true):
+    return model.KL(len(log_r_hat))
+
+def bayesian_ratio_augmented_xe(model, s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true, t1_true):
+    s_hat = 1.0 / (1.0 + torch.exp(log_r_hat))
+    s_true = 1.0 / (1.0 + r_true)
+    kl = model.KL(len(s_hat))
+    # return kl + BCELoss()(s_hat, s_true)
+    # neg_log_gauss = torch.mean(torch.pow(s_hat - s_true, 2))
+    # return kl + neg_log_gauss
+
+# def repulsive_ratio_augmented_xe_test(s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true, t1_true, data_len):
+#     # first compute ratio_augmented_xe loss
+#     return ratio_augmented_xe(s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true, t1_true)
+
 def repulsive_ratio_augmented_xe(s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true, t1_true, data_len):
     # first compute ratio_augmented_xe loss
     losses = ratio_augmented_xe(s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true, t1_true, reduction='none')

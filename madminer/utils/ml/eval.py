@@ -6,6 +6,7 @@ from torch import tensor
 
 from madminer.utils.ml.models.ratio import DenseSingleParameterizedRatioModel
 from madminer.utils.ml.models.ratio import RepulsiveEnsembleDenseSingleParameterizedRatioModel
+from madminer.utils.ml.models.ratio import BayesianDenseSingleParameterizedRatioModel
 from madminer.utils.ml.models.ratio import DenseDoublyParameterizedRatioModel
 
 logger = logging.getLogger(__name__)
@@ -70,6 +71,7 @@ def evaluate_ratio_model(
     run_on_gpu=True,
     double_precision=False,
     return_grad_x=False,
+    n_eval=100
 ):
     # CPU or GPU?
     run_on_gpu = run_on_gpu and torch.cuda.is_available()
@@ -80,6 +82,8 @@ def evaluate_ratio_model(
     if method_type is None:
         if isinstance(model, RepulsiveEnsembleDenseSingleParameterizedRatioModel):
             method_type = "repulsive_parameterized"
+        elif isinstance(model, BayesianDenseSingleParameterizedRatioModel):
+            method_type = "bayesian_parameterized"
         elif isinstance(model, DenseSingleParameterizedRatioModel):
             method_type = "parameterized"
         elif isinstance(model, DenseDoublyParameterizedRatioModel):
@@ -187,6 +191,20 @@ def evaluate_ratio_model(
                 s_hat, log_r_hat, _, _ = model(theta0s, theta1s, xs, track_score=False, create_gradient_graph=False)
             elif method_type == "repulsive_parameterized":
                 s_hat, log_r_hat, _ = model(theta0s, xs, track_score=False, create_gradient_graph=False)
+            elif method_type == "bayesian_parameterized":
+                s_hat, log_r_hat = [], []
+                for _ in range(n_eval):
+                    s_hat_one, log_r_hat_one, _ = model(theta0s, xs, track_score=False, create_gradient_graph=False)
+                    # print(f"log_r_hat_one neg: {log_r_hat_one.shape, log_r_hat_one[log_r_hat_one < 0].shape}")
+                    s_hat.append(s_hat_one.detach().numpy())
+                    log_r_hat_one = log_r_hat_one[:, 0] # only use mu 
+                    # print(log_r_hat_one)
+                    # log_r_hat_one = torch.log(log_r_hat_one)
+                    log_r_hat.append(log_r_hat_one.detach().numpy())
+                s_hat = np.array(s_hat).T
+                log_r_hat = np.array(log_r_hat)
+                log_r_hat_mean = log_r_hat.mean(axis=0).flatten()
+                log_r_hat_std = log_r_hat.std(axis=0).flatten()
             else:
                 raise ValueError("Unknown method type %s", method_type)
 
@@ -196,14 +214,17 @@ def evaluate_ratio_model(
                 log_r_hat = log_r_hat.cpu()
 
             # Get data and return
-            s_hat = s_hat.detach().numpy().flatten()
+            if method_type != "bayesian_parameterized":
+                s_hat = s_hat.detach().numpy().flatten()
             if method_type == "repulsive_parameterized":
                 log_r_hat_mean = log_r_hat.mean(dim=0).flatten().numpy()
                 log_r_hat_std = log_r_hat.std(dim=0).flatten().numpy()
+            elif method_type == "bayesian_parameterized":
+                pass
             else:
                 log_r_hat = log_r_hat.detach().numpy().flatten()
             t_hat0, t_hat1 = None, None
-    if method_type == "repulsive_parameterized":
+    if method_type in ["repulsive_parameterized", "bayesian_parameterized"]:
         if return_grad_x:
             return s_hat, log_r_hat, t_hat0, t_hat1, x_gradients, log_r_hat_std
         return s_hat, log_r_hat_mean, t_hat0, t_hat1, log_r_hat_std

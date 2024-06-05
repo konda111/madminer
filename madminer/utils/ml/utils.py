@@ -127,6 +127,10 @@ def get_loss(method, alpha):
         loss_functions = [losses.repulsive_ratio_augmented_xe]
         loss_weights = [1.0]
         loss_labels = ["repulsive_improved_xe"]
+    elif method in ["bayesian_alice"]:
+        loss_functions = [losses.my_ratio_augmented_xe, losses.bayesian_ratio_loss_kl]
+        loss_weights = [1.0, alpha]
+        loss_labels = ["bayesian_nl", "bayesian_kl"]
     elif method == "alices":
         loss_functions = [losses.ratio_augmented_xe, losses.ratio_score_mse_num]
         loss_weights = [1.0, alpha]

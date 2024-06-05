@@ -6,7 +6,7 @@ import torch.nn as nn
 
 from torch.autograd import grad
 from madminer.utils.ml.utils import get_activation_function
-from madminer.utils.ml.layers import StackedLinear
+from madminer.utils.ml.layers import StackedLinear, VBLinear
 
 logger = logging.getLogger(__name__)
 
@@ -185,7 +185,66 @@ class RepulsiveEnsembleDenseSingleParameterizedRatioModel(DenseSingleParameteriz
 
             return s_hat, log_r_hat, t_hat, x_gradient
         return s_hat, log_r_hat, t_hat
-        
+
+
+class BayesianDenseSingleParameterizedRatioModel(DenseSingleParameterizedRatioModel):
+    """Modified version of RepulsiveEnsembleDenseSingleParameterizedRatioModel using Bayesian layers."""
+
+    def __init__(
+        self, 
+        n_observables, 
+        n_hidden, 
+        n_parameters,
+        activation="tanh", 
+        dropout_prob=0.0):
+        super().__init__(
+            n_observables,
+            n_parameters,
+            n_hidden,
+            activation=activation,
+            dropout_prob=dropout_prob
+        )
+
+        # Save input
+        self.n_hidden = n_hidden
+        self.activation = get_activation_function(activation)
+        self.dropout_prob = dropout_prob
+
+        # Build network
+        self.layers = nn.ModuleList()
+        self.vb_layers = []
+        n_last = n_observables + n_parameters
+
+        # Hidden layers
+        for n_hidden_units in n_hidden:
+            if self.dropout_prob > 1.0e-9:
+                self.layers.append(nn.Dropout(self.dropout_prob))
+            vb_layer = VBLinear(n_last, n_hidden_units)
+            self.vb_layers.append(vb_layer)
+            self.layers.append(vb_layer)
+            n_last = n_hidden_units
+
+        # Log r layer
+        if self.dropout_prob > 1.0e-9:
+            self.layers.append(nn.Dropout(self.dropout_prob))
+        # output is [mu, logsigmaSq]
+        vb_layer = VBLinear(n_last, 1)
+        self.vb_layers.append(vb_layer)
+        self.layers.append(vb_layer)
+    
+    def KL(self, training_size):
+        kl = 0
+        for vb_layer in self.vb_layers:
+            kl += vb_layer.KL()
+        return kl / training_size
+    
+    def neg_log_gauss(self, outputs, targets):
+        # output has form [mu, logsigmaSq]]
+        mu = outputs[:, 0]
+        logsigma2 = outputs[:, 1]
+        out = torch.pow(mu - targets, 2)/(2 * logsigma2.exp()) + 1./2. * logsigma2
+        return torch.mean(out)
+
 class DenseDoublyParameterizedRatioModel(nn.Module):
     """Module that implements agnostic parameterized likelihood estimators such as RASCAL or ALICES. Both
     numerator and denominator of the ratio are parameterized."""
