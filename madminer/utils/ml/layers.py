@@ -21,7 +21,7 @@ class VBLinear(nn.Module):
     weight: torch.Tensor
     
     def __init__( self, in_features, out_features ):
-        super(VBLinear, self).__init__()
+        super().__init__()
         self.in_features = in_features
         self.out_features = out_features
         self.resample = True
@@ -44,9 +44,9 @@ class VBLinear(nn.Module):
         self.logsig2_w.data.zero_().normal_( -9, 0.001 )
         self.bias.data.zero_()
         
-    def KL( self, loguniform=False ):
-        kl = 0.5 * ( self.mu_w.pow(2) + self.logsig2_w.exp() - self.logsig2_w - 1 ).sum()
-        return kl
+    def KL(self, mu_prior=0, sig_prior=1):
+        kl = (self.logsig2_w.exp() - sig_prior**2 + (self.mu_w - mu_prior)**2)/(2*sig_prior**2) + np.log(sig_prior) - 0.5*self.logsig2_w
+        return kl.sum()
     
 
 class StackedLinear(nn.Module):

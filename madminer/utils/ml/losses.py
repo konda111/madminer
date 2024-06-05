@@ -83,7 +83,7 @@ def heteroskedastic_loss(outputs, t_true):
     out = torch.pow(mus - t_true.reshape(-1), 2)/(2 * logsigma2s.exp()) + 1/2. * logsigma2s
     return torch.mean(out)
 
-def repulsive_ensemble_loss(outputs, t_true):
+def repulsive_ensemble_loss(outputs, t_true, data_len):
     # first compute heteroskedastic regression loss
     mus = outputs[:, :, :, 0]
     logsigma2s = outputs[:, :, :, 1]
@@ -91,7 +91,7 @@ def repulsive_ensemble_loss(outputs, t_true):
     # repulsive ensemble loss
     k = kernel(reg, reg.detach())
     reg_mean, reg_std = reg.mean(dim=1), reg.std(dim=1)
-    loss = torch.sum(reg_mean + (k.sum(dim=1) / k.detach().sum(dim=1) - 1) / len(mus), dim=0) # loss shape: (n_parameters)
+    loss = torch.sum(reg_mean + (k.sum(dim=1) / k.detach().sum(dim=1) - 1) / data_len, dim=0) # loss shape: (n_parameters)
     return loss.sum()
 
 def repulsive_ensemble_mse_loss(outputs, t_true, data_len):
@@ -108,6 +108,10 @@ def bayesian_loss(model, outputs, t_true):
     nl = model.neg_log_gauss(outputs, t_true.reshape(-1))
     kl = model.KL(len(outputs))
     return nl + kl
+
+def bayesian_mse_loss(model, outputs, t_true):
+    t_pred = outputs[:, 0]
+    return MSELoss()(t_pred, t_true.flatten())
 
 def local_score_mse_weighted(t_hat, t_true, weights):
     return (weights * (t_hat - t_true) ** 2).mean()
