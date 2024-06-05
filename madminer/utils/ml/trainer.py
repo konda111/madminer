@@ -467,6 +467,7 @@ class Trainer:
             summary = contribution_summary(loss_labels, loss_contributions_val)
             val_report   = f"             val. loss  {loss_val:>8.9f} ({summary})"
             logging_fn(val_report)
+            summary = contribution_summary(loss_labels, loss_contributions_train + loss_contributions_val)
             total_report = f"           total. loss  {loss_train+loss_val:>8.9f} ({summary})"
             logging_fn(total_report)
 
