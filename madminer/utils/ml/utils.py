@@ -127,6 +127,10 @@ def get_loss(method, alpha):
         loss_functions = [losses.repulsive_ratio_augmented_xe]
         loss_weights = [1.0]
         loss_labels = ["repulsive_improved_xe"]
+    elif method in ["bayesian_alice"]:
+        loss_functions = [losses.my_ratio_augmented_xe, losses.bayesian_ratio_loss_kl]
+        loss_weights = [1.0, alpha]
+        loss_labels = ["bayesian_nl", "bayesian_kl"]
     elif method == "alices":
         loss_functions = [losses.ratio_augmented_xe, losses.ratio_score_mse_num]
         loss_weights = [1.0, alpha]
@@ -136,21 +140,21 @@ def get_loss(method, alpha):
         loss_weights = [1.0, alpha]
         loss_labels = ["improved_xe", "mse_score"]
     elif method in ["sally", "sallino"]:
-        loss_functions = [losses.local_score_mse]
-        loss_weights = [1.0]
-        loss_labels = ["mse_score"]
+        loss_functions = [losses.local_score_mse, losses.arctanh_score_mse, losses.exp_score_mse]
+        loss_weights = [1.0, 0.0, 0.0]
+        loss_labels = ["mse_score", "arctanh_score_mse", "exp_score_mse"]
     elif method == "heteroskedastic_sally":
         loss_functions = [losses.heteroskedastic_loss]
         loss_weights = [1.0]
         loss_labels = ["heteroskedastic_loss"]
     elif method == "repulsive_ensemble_sally":
-        loss_functions = [losses.repulsive_ensemble_mse_loss]
-        loss_weights = [1.0]
-        loss_labels = ["repulsive_ensemble_loss"]
+        loss_functions = [losses.repulsive_ensemble_loss, losses.repulsive_ensemble_mse_loss]
+        loss_weights = [1.0, 0.0]
+        loss_labels = ["repulsive_ensemble_loss", "repulsive_ensemble_mse_loss"]
     elif method == "bayesian_sally":
-        loss_functions = [losses.bayesian_loss]
-        loss_weights = [1.0]
-        loss_labels = ["bayesian_loss"]
+        loss_functions = [losses.bayesian_loss, losses.bayesian_mse_loss]
+        loss_weights = [1.0, 0.0]
+        loss_labels = ["bayesian_loss", "bayesian_mse_loss"]
     elif method == "sally_weighted":
         loss_functions = [losses.local_score_mse_weighted]
         loss_weights = [1.0]

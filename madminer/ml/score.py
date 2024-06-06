@@ -65,6 +65,7 @@ class ScoreEstimator(Estimator):
         shuffle_labels=False,
         limit_samplesize=None,
         memmap=False,
+        scheduler=False,
         verbose="some",
         n_workers=8,
         clip_gradient=None,
@@ -262,6 +263,7 @@ class ScoreEstimator(Estimator):
             validation_split=validation_split,
             early_stopping=early_stopping,
             verbose=verbose,
+            scheduler=scheduler,
             clip_gradient=clip_gradient,
             early_stopping_patience=early_stopping_patience,
         )

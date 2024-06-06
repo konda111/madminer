@@ -134,8 +134,12 @@ class Trainer:
                 lr = self.calculate_lr(i_epoch, epochs, initial_lr, final_lr)
                 self.set_lr(opt, lr)
             else:
-                sched.step()
-                lr = opt.param_groups[0]['lr']
+                if i_epoch == 0:
+                    lr = initial_lr
+                else:
+                    sched.step()
+                    lr = opt.param_groups[0]['lr']
+                    self.set_lr(opt, lr)
             logger.debug("Learning rate: %s", lr)
             self._timer(stop="set lr")
             loss_val = None
@@ -437,7 +441,7 @@ class Trainer:
     @staticmethod
     def report_batch(i_epoch, i_batch, loss_train):
         if i_batch in [0, 1, 10, 100, 1000]:
-            logger.debug(f"  Epoch {(i_epoch+1):>3d}, batch {(i_batch+1):>3d}: loss {loss_train:>8.5f}")
+            logger.debug(f"  Epoch {(i_epoch+1):>3d}, batch {(i_batch+1):>3d}: loss {loss_train:>8.10f}")
 
     @staticmethod
     def report_epoch(
@@ -456,7 +460,7 @@ class Trainer:
             for i, (label, value) in enumerate(zip(labels, contributions)):
                 if i > 0:
                     summary += ", "
-                summary += f"{label}: {value:>6.3f}"
+                summary += f"{label}: {value:>6.5f}"
             return summary
 
         summary = contribution_summary(loss_labels, loss_contributions_train)
@@ -465,8 +469,11 @@ class Trainer:
 
         if loss_val is not None:
             summary = contribution_summary(loss_labels, loss_contributions_val)
-            val_report = f"             val. loss  {loss_val:>8.5f} ({summary})"
+            val_report   = f"             val. loss  {loss_val:>8.5f} ({summary})"
             logging_fn(val_report)
+            summary = contribution_summary(loss_labels, loss_contributions_train + loss_contributions_val)
+            total_report = f"           total. loss  {loss_train+loss_val:>8.5f} ({summary})"
+            logging_fn(total_report)
 
     def wrap_up_early_stopping(self, best_model, currrent_loss, best_loss, best_epoch):
         if best_loss is None or not np.isfinite(best_loss):
@@ -621,6 +628,46 @@ class RepulsiveEnsembeSingleParameterizedRatioTrainer(SingleParameterizedRatioTr
 
         return losses
 
+
+class BayesianSingleParameterizedRatioTrainer(SingleParameterizedRatioTrainer):
+
+    def forward_pass(self, batch_data, loss_functions):
+        self._timer(start="fwd: move data")
+        theta = batch_data["theta"].to(self.device, self.dtype, non_blocking=True)
+        x = batch_data["x"].to(self.device, self.dtype, non_blocking=True)
+        y = batch_data["y"].to(self.device, self.dtype, non_blocking=True)
+
+        try:
+            r_xz = batch_data["r_xz"].to(self.device, self.dtype, non_blocking=True)
+        except KeyError:
+            r_xz = None
+        try:
+            t_xz = batch_data["t_xz"].to(self.device, self.dtype, non_blocking=True)
+        except KeyError:
+            t_xz = None
+
+        self._timer(stop="fwd: move data", start="fwd: check for nans")
+        self._check_for_nans("Training data", theta, x, y)
+        self._check_for_nans("Augmented training data", r_xz, t_xz)
+        self._timer(start="fwd: model.forward", stop="fwd: check for nans")
+
+        if self.calculate_model_score:
+            theta.requires_grad = True
+
+        s_hat, log_r_hat, t_hat = self.model(theta, x, track_score=self.calculate_model_score, return_grad_x=False)
+        self._timer(stop="fwd: model.forward", start="fwd: check for nans")
+        self._check_for_nans("Model log_r_hat", log_r_hat)
+        self._check_for_nans("Model s_hat", s_hat)
+        self._check_for_nans("Model score", t_hat)
+        
+        self._timer(start="fwd: calculate losses", stop="fwd: check for nans")
+        losses = [loss_function(self.model, s_hat, log_r_hat, t_hat, None, y, r_xz, t_xz, None) for loss_function in loss_functions]
+        self._timer(stop="fwd: calculate losses", start="fwd: check for nans")
+        self._check_for_nans("Loss", *losses)
+        self._timer(stop="fwd: check for nans")
+
+        return losses
+    
 class DoubleParameterizedRatioTrainer(Trainer):
     def __init__(self, model, run_on_gpu=True, double_precision=False, n_workers=8):
         super().__init__(model, run_on_gpu, double_precision, n_workers)
@@ -743,7 +790,7 @@ class RepulsiveEnsembeLocalScoreTrainer(Trainer):
 
         self._timer(start="fwd: model.forward", stop="fwd: check for nans")
         t_hat = self.model(x)
-        t_hat = torch.reshape(t_hat, (n_channels, batch_data["x"].shape[0], self.model.n_parameters, 1)) # bring outputs to shape (n_channels, n_data, n_parameters, 2)
+        t_hat = torch.reshape(t_hat, (n_channels, batch_data["x"].shape[0], self.model.n_parameters, 2)) # bring outputs to shape (n_channels, n_data, n_parameters, 2)
         self._timer(stop="fwd: model.forward", start="fwd: check for nans")
         self._check_for_nans("Model output", t_hat)
 

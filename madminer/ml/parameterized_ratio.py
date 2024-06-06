@@ -8,8 +8,8 @@ import torch
 from .base import ConditionalEstimator
 from .base import TheresAGoodReasonThisDoesntWork
 from ..utils.ml.eval import evaluate_ratio_model
-from ..utils.ml.models.ratio import DenseSingleParameterizedRatioModel, RepulsiveEnsembleDenseSingleParameterizedRatioModel
-from ..utils.ml.trainer import SingleParameterizedRatioTrainer, RepulsiveEnsembeSingleParameterizedRatioTrainer
+from ..utils.ml.models.ratio import DenseSingleParameterizedRatioModel, RepulsiveEnsembleDenseSingleParameterizedRatioModel, BayesianDenseSingleParameterizedRatioModel
+from ..utils.ml.trainer import SingleParameterizedRatioTrainer, RepulsiveEnsembeSingleParameterizedRatioTrainer, BayesianSingleParameterizedRatioTrainer
 from ..utils.ml.utils import get_optimizer
 from ..utils.ml.utils import get_loss
 from ..utils.various import load_and_check
@@ -57,6 +57,7 @@ class ParameterizedRatioEstimator(ConditionalEstimator):
         n_workers=8,
         clip_gradient=None,
         early_stopping_patience=None,
+        trainer_class=SingleParameterizedRatioTrainer
     ):
         """
         Trains the network.
@@ -290,7 +291,7 @@ class ParameterizedRatioEstimator(ConditionalEstimator):
 
         # Train model
         logger.info("Training model")
-        trainer = SingleParameterizedRatioTrainer(self.model, n_workers=n_workers)
+        trainer = trainer_class(self.model, n_workers=n_workers)
         result = trainer.train(
             data=data,
             data_val=data_val,
@@ -512,7 +513,7 @@ class ParameterizedRatioEstimator(ConditionalEstimator):
         data["x"] = x
         data["theta"] = theta
         data["y"] = y
-        if method in ["rolr", "alice", "alices", "rascal"]:
+        if method in ["rolr", "alice", "repulsive_alice", "bayesian_alice", "alices", "rascal"]:
             data["r_xz"] = r_xz
         if method in ["cascal", "alices", "rascal"]:
             data["t_xz"] = t_xz
@@ -1027,7 +1028,7 @@ class RepulsiveEnsembleParameterizedRatioEstimator(ConditionalEstimator):
         data["x"] = x
         data["theta"] = theta
         data["y"] = y
-        if method in ["rolr", "alice", "repulsive_alice", "alices", "rascal"]:
+        if method in ["rolr", "alice", "repulsive_alice", "bayesian_alice", "alices", "rascal"]:
             data["r_xz"] = r_xz
         if method in ["cascal", "alices", "rascal"]:
             data["t_xz"] = t_xz
@@ -1035,12 +1036,134 @@ class RepulsiveEnsembleParameterizedRatioEstimator(ConditionalEstimator):
 
     def _wrap_settings(self):
         settings = super()._wrap_settings()
-        settings["estimator_type"] = "parameterized_ratio"
+        settings["estimator_type"] = "repulsive_parameterized_ratio"
         return settings
 
     def _unwrap_settings(self, settings):
         super()._unwrap_settings(settings)
 
         estimator_type = str(settings["estimator_type"])
-        if estimator_type != "parameterized_ratio":
+        if estimator_type != "repulsive_parameterized_ratio":
+            raise RuntimeError(f"Saved model is an incompatible estimator type {estimator_type}.")
+        
+        
+
+class BayesianParameterizedRatioEstimator(ParameterizedRatioEstimator):
+
+    def train(self, *args, **kwargs):
+        super().train(*args, **kwargs, trainer_class=BayesianSingleParameterizedRatioTrainer)
+        
+    def evaluate_log_likelihood_ratio(self, x, theta, test_all_combinations=True, evaluate_score=False):
+        """
+        Evaluates the log likelihood ratio for given observations x between the given parameter point theta and the
+        reference hypothesis.
+
+        Parameters
+        ----------
+        x : str or ndarray
+            Observations or filename of a pickled numpy array.
+
+        theta : ndarray or str
+            Parameter points or filename of a pickled numpy array.
+
+        test_all_combinations : bool, optional
+            If False, the number of samples in the observable and theta
+            files has to match, and the likelihood ratio is evaluated only for the combinations
+            `r(x_i | theta0_i, theta1_i)`. If True, `r(x_i | theta0_j, theta1_j)` for all pairwise combinations `i, j`
+            are evaluated. Default value: True.
+
+        evaluate_score : bool, optional
+            Sets whether in addition to the likelihood ratio the score is evaluated. Default value: False.
+
+        Returns
+        -------
+        log_likelihood_ratio : ndarray
+            The estimated log likelihood ratio. If test_all_combinations is True, the result has shape
+            `(n_thetas, n_x)`. Otherwise, it has shape `(n_samples,)`.
+
+        score : ndarray or None
+            None if evaluate_score is False. Otherwise the derived estimated score at `theta0`. If test_all_combinations
+            is True, the result has shape `(n_thetas, n_x, n_parameters)`. Otherwise, it has shape
+            `(n_samples, n_parameters)`.
+
+        """
+        if self.model is None:
+            raise ValueError("No model -- train or load model before evaluating it!")
+
+        # Load training data
+        logger.debug("Loading evaluation data")
+        x = load_and_check(x)
+        theta = load_and_check(theta)
+
+        # Scale observables
+        x = self._transform_inputs(x)
+        theta = self._transform_parameters(theta)
+
+        # Restrict features
+        if self.features is not None:
+            x = x[:, self.features]
+
+        all_log_r_hat = []
+        all_log_r_hat_std = []
+        all_t_hat = []
+
+        if test_all_combinations:
+            logger.debug("Starting ratio evaluation for %s x-theta combinations", len(theta) * len(x))
+
+            for i, this_theta in enumerate(theta, start=1):
+                logger.debug("Starting ratio evaluation for thetas %s / %s: %s", i, len(theta), this_theta)
+                _, log_r_hat, t_hat, _, log_r_hat_std = evaluate_ratio_model(
+                    model=self.model,
+                    method_type="bayesian_parameterized",
+                    theta0s=[this_theta],
+                    theta1s=None,
+                    xs=x,
+                    evaluate_score=evaluate_score,
+                )
+
+                t_hat = self._transform_score(t_hat, inverse=True)
+
+                all_log_r_hat.append(log_r_hat)
+                all_log_r_hat_std.append(log_r_hat_std)
+                all_t_hat.append(t_hat)
+
+            all_log_r_hat = np.array(all_log_r_hat)
+            all_log_r_hat_std = np.array(all_log_r_hat_std)
+            all_t_hat = np.array(all_t_hat)
+
+        else:
+            logger.debug("Starting ratio evaluation")
+            _, all_log_r_hat, all_t_hat, _ = evaluate_ratio_model(
+                model=self.model,
+                method_type="parameterized_ratio",
+                theta0s=theta,
+                theta1s=None,
+                xs=x,
+                evaluate_score=evaluate_score,
+            )
+
+            all_t_hat = self._transform_score(all_t_hat, inverse=True)
+
+        logger.debug("Evaluation done")
+        return all_log_r_hat, all_t_hat, all_log_r_hat_std
+        
+    def _create_model(self):
+        self.model = BayesianDenseSingleParameterizedRatioModel(
+            n_observables=self.n_observables,
+            n_parameters=self.n_parameters,
+            n_hidden=self.n_hidden,
+            activation=self.activation,
+            dropout_prob=self.dropout_prob,
+        )
+    
+    def _wrap_settings(self):
+        settings = super()._wrap_settings()
+        settings["estimator_type"] = "bayesian_parameterized_ratio"
+        return settings
+
+    def _unwrap_settings(self, settings):
+        ConditionalEstimator._unwrap_settings(self, settings)
+
+        estimator_type = str(settings["estimator_type"])
+        if estimator_type != "bayesian_parameterized_ratio":
             raise RuntimeError(f"Saved model is an incompatible estimator type {estimator_type}.")

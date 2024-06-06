@@ -63,6 +63,34 @@ def ratio_augmented_xe(s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true
     s_true = 1.0 / (1.0 + r_true)
     return BCELoss(reduction=reduction)(s_hat, s_true)
 
+def my_ratio_augmented_xe(model, s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true, t1_true, reduction='mean'):
+    s_hat = 1.0 / (1.0 + torch.exp(log_r_hat))
+    s_true = 1.0 / (1.0 + r_true)
+    return BCELoss(reduction=reduction)(s_hat, s_true)
+
+def bayesian_ratio_loss_nl(model, s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true, t1_true, log_r_clip=10.0):
+    s_hat = 1.0 / (1.0 + torch.exp(log_r_hat))
+    s_true = 1.0 / (1.0 + r_true)
+    # r_true = torch.clamp(r_true, np.exp(-log_r_clip), np.exp(log_r_clip))
+    # log_r_hat = torch.clamp(log_r_hat, np.exp(-log_r_clip), np.exp(log_r_clip))
+    # return model.neg_log_gauss(log_r_hat, r_true.reshape(-1))
+    return model.neg_log_gauss(s_hat, s_true.reshape(-1))
+
+def bayesian_ratio_loss_kl(model, s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true, t1_true):
+    return model.KL(len(log_r_hat))
+
+def bayesian_ratio_augmented_xe(model, s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true, t1_true):
+    s_hat = 1.0 / (1.0 + torch.exp(log_r_hat))
+    s_true = 1.0 / (1.0 + r_true)
+    kl = model.KL(len(s_hat))
+    # return kl + BCELoss()(s_hat, s_true)
+    # neg_log_gauss = torch.mean(torch.pow(s_hat - s_true, 2))
+    # return kl + neg_log_gauss
+
+# def repulsive_ratio_augmented_xe_test(s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true, t1_true, data_len):
+#     # first compute ratio_augmented_xe loss
+#     return ratio_augmented_xe(s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true, t1_true)
+
 def repulsive_ratio_augmented_xe(s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true, t1_true, data_len):
     # first compute ratio_augmented_xe loss
     losses = ratio_augmented_xe(s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_true, t0_true, t1_true, reduction='none')
@@ -76,6 +104,18 @@ def repulsive_ratio_augmented_xe(s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_tru
 def local_score_mse(t_hat, t_true):
     return MSELoss()(t_hat, t_true)
 
+def arctanh_score_mse(t_hat, t_true):
+    t_hat = torch.clamp(t_hat, -0.999999, 0.999999)
+    t_true = torch.clamp(t_true, -0.999999, 0.999999)
+    t_hat = torch.atanh(t_hat)
+    t_true = torch.atanh(t_true)
+    return MSELoss()(t_hat, t_true)
+
+def exp_score_mse(t_hat, t_true):
+    t_hat = torch.exp(t_hat)
+    t_true = torch.exp(t_true)
+    return MSELoss()(t_hat, t_true)
+
 
 def heteroskedastic_loss(outputs, t_true):
     mus = outputs[:, 0]
@@ -83,7 +123,7 @@ def heteroskedastic_loss(outputs, t_true):
     out = torch.pow(mus - t_true.reshape(-1), 2)/(2 * logsigma2s.exp()) + 1/2. * logsigma2s
     return torch.mean(out)
 
-def repulsive_ensemble_loss(outputs, t_true):
+def repulsive_ensemble_loss(outputs, t_true, data_len):
     # first compute heteroskedastic regression loss
     mus = outputs[:, :, :, 0]
     logsigma2s = outputs[:, :, :, 1]
@@ -91,7 +131,7 @@ def repulsive_ensemble_loss(outputs, t_true):
     # repulsive ensemble loss
     k = kernel(reg, reg.detach())
     reg_mean, reg_std = reg.mean(dim=1), reg.std(dim=1)
-    loss = torch.sum(reg_mean + (k.sum(dim=1) / k.detach().sum(dim=1) - 1) / len(mus), dim=0) # loss shape: (n_parameters)
+    loss = torch.sum(reg_mean + (k.sum(dim=1) / k.detach().sum(dim=1) - 1) / data_len, dim=0) # loss shape: (n_parameters)
     return loss.sum()
 
 def repulsive_ensemble_mse_loss(outputs, t_true, data_len):
@@ -101,13 +141,18 @@ def repulsive_ensemble_mse_loss(outputs, t_true, data_len):
     k = kernel(reg, reg.detach())
     n_channels = reg.shape[0]
     reg_mean, reg_std = reg.mean(dim=1), reg.std(dim=1)
-    loss = torch.sum(reg_mean + (k.sum(dim=1) / k.detach().sum(dim=1) - 1) / data_len, dim=0) # loss shape: (n_parameters)
+    # loss = torch.sum(reg_mean + (k.sum(dim=1) / k.detach().sum(dim=1) - 1) / data_len, dim=0) # loss shape: (n_parameters)
+    loss = torch.sum(reg_mean, dim=0) # loss shape: (n_parameters)
     return loss.sum()/n_channels
 
 def bayesian_loss(model, outputs, t_true):
     nl = model.neg_log_gauss(outputs, t_true.reshape(-1))
     kl = model.KL(len(outputs))
     return nl + kl
+
+def bayesian_mse_loss(model, outputs, t_true):
+    t_pred = outputs[:, 0]
+    return MSELoss()(t_pred, t_true.flatten())
 
 def local_score_mse_weighted(t_hat, t_true, weights):
     return (weights * (t_hat - t_true) ** 2).mean()
