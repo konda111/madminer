@@ -104,6 +104,18 @@ def repulsive_ratio_augmented_xe(s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_tru
 def local_score_mse(t_hat, t_true):
     return MSELoss()(t_hat, t_true)
 
+def arctanh_score_mse(t_hat, t_true):
+    t_hat = torch.clamp(t_hat, -0.999999, 0.999999)
+    t_true = torch.clamp(t_true, -0.999999, 0.999999)
+    t_hat = torch.atanh(t_hat)
+    t_true = torch.atanh(t_true)
+    return MSELoss()(t_hat, t_true)
+
+def exp_score_mse(t_hat, t_true):
+    t_hat = torch.exp(t_hat)
+    t_true = torch.exp(t_true)
+    return MSELoss()(t_hat, t_true)
+
 
 def heteroskedastic_loss(outputs, t_true):
     mus = outputs[:, 0]
@@ -129,7 +141,8 @@ def repulsive_ensemble_mse_loss(outputs, t_true, data_len):
     k = kernel(reg, reg.detach())
     n_channels = reg.shape[0]
     reg_mean, reg_std = reg.mean(dim=1), reg.std(dim=1)
-    loss = torch.sum(reg_mean + (k.sum(dim=1) / k.detach().sum(dim=1) - 1) / data_len, dim=0) # loss shape: (n_parameters)
+    # loss = torch.sum(reg_mean + (k.sum(dim=1) / k.detach().sum(dim=1) - 1) / data_len, dim=0) # loss shape: (n_parameters)
+    loss = torch.sum(reg_mean, dim=0) # loss shape: (n_parameters)
     return loss.sum()/n_channels
 
 def bayesian_loss(model, outputs, t_true):

@@ -134,8 +134,12 @@ class Trainer:
                 lr = self.calculate_lr(i_epoch, epochs, initial_lr, final_lr)
                 self.set_lr(opt, lr)
             else:
-                sched.step()
-                lr = opt.param_groups[0]['lr']
+                if i_epoch == 0:
+                    lr = initial_lr
+                else:
+                    sched.step()
+                    lr = opt.param_groups[0]['lr']
+                    self.set_lr(opt, lr)
             logger.debug("Learning rate: %s", lr)
             self._timer(stop="set lr")
             loss_val = None
@@ -456,19 +460,19 @@ class Trainer:
             for i, (label, value) in enumerate(zip(labels, contributions)):
                 if i > 0:
                     summary += ", "
-                summary += f"{label}: {value:>6.3f}"
+                summary += f"{label}: {value:>6.5f}"
             return summary
 
         summary = contribution_summary(loss_labels, loss_contributions_train)
-        train_report = f"  Epoch {(i_epoch+1):>3d}: train loss {loss_train:>8.9f} ({summary})"
+        train_report = f"  Epoch {(i_epoch+1):>3d}: train loss {loss_train:>8.5f} ({summary})"
         logging_fn(train_report)
 
         if loss_val is not None:
             summary = contribution_summary(loss_labels, loss_contributions_val)
-            val_report   = f"             val. loss  {loss_val:>8.9f} ({summary})"
+            val_report   = f"             val. loss  {loss_val:>8.5f} ({summary})"
             logging_fn(val_report)
             summary = contribution_summary(loss_labels, loss_contributions_train + loss_contributions_val)
-            total_report = f"           total. loss  {loss_train+loss_val:>8.9f} ({summary})"
+            total_report = f"           total. loss  {loss_train+loss_val:>8.5f} ({summary})"
             logging_fn(total_report)
 
     def wrap_up_early_stopping(self, best_model, currrent_loss, best_loss, best_epoch):
