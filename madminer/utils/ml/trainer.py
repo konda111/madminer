@@ -736,6 +736,7 @@ class RepulsiveEnsembeLocalScoreTrainer(Trainer):
         x = x.to(self.device, self.dtype, non_blocking=True)
         t_xz = batch_data["t_xz"][None,:].clone().detach()
         t_xz = t_xz.expand(n_channels,-1,-1)
+        t_xz = t_xz.to(self.device, self.dtype, non_blocking=True)
         self._timer(stop="fwd: move data", start="fwd: check for nans")
         self._check_for_nans("Training data", x)
         self._check_for_nans("Augmented training data", t_xz)
