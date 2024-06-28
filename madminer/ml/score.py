@@ -789,7 +789,7 @@ class RepulsiveEnsembleScoreEstimator(ScoreEstimator):
         )
         return result
         
-    def evaluate_score(self, x, theta=None, nuisance_mode="auto"):
+    def evaluate_score(self, x, theta=None, nuisance_mode="auto", return_individual_contributions=False):
         """
         Evaluates the score.
 
@@ -836,7 +836,10 @@ class RepulsiveEnsembleScoreEstimator(ScoreEstimator):
 
         # Evaluation
         logger.debug("Starting score evaluation")
-        t_hat_mu, t_hat_std = evaluate_repulsive_ensemble_local_score_model(model=self.model, xs=x)
+        if return_individual_contributions:
+            t_hat_mu = evaluate_repulsive_ensemble_local_score_model(model=self.model, xs=x, return_individual_contributions=return_individual_contributions)
+        else:
+            t_hat_mu, t_hat_std = evaluate_repulsive_ensemble_local_score_model(model=self.model, xs=x, return_individual_contributions=return_individual_contributions)
 
         # Treatment of nuisance parameters
         if nuisance_mode == "keep":
@@ -863,7 +866,10 @@ class RepulsiveEnsembleScoreEstimator(ScoreEstimator):
         else:
             raise ValueError(f"Unknown nuisance_mode {nuisance_mode}")
 
-        return t_hat_mu, t_hat_std
+        if return_individual_contributions:
+            return t_hat_mu
+        else:
+            return t_hat_mu, t_hat_std
     
     def _create_model(self):
         self.model = RepulsiveEnsembleDenseLocalScoreModel(

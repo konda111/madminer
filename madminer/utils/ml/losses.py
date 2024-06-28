@@ -126,16 +126,46 @@ def heteroskedastic_loss(outputs, t_true):
 def repulsive_ensemble_loss(outputs, t_true, data_len):
     # first compute heteroskedastic regression loss
     mus = outputs[:, :, :, 0]
-    logsigma2s = outputs[:, :, :, 1]
-    reg = torch.pow(mus - t_true.reshape(mus.shape), 2)/(2 * logsigma2s.exp()) + 1/2. * logsigma2s
+    # logsigma2s = outputs[:, :, :, 1]
+    reg = torch.pow(mus - t_true.reshape(mus.shape), 2)
+    n_channels = reg.shape[0]
+    # reg = torch.pow(mus - t_true.reshape(mus.shape), 2)/(2 * logsigma2s.exp()) + 1/2. * logsigma2s
     # repulsive ensemble loss
     k = kernel(reg, reg.detach())
     reg_mean, reg_std = reg.mean(dim=1), reg.std(dim=1)
     loss = torch.sum(reg_mean + (k.sum(dim=1) / k.detach().sum(dim=1) - 1) / data_len, dim=0) # loss shape: (n_parameters)
-    return loss.sum()
+    return loss.sum()/n_channels
 
 def repulsive_ensemble_mse_loss(outputs, t_true, data_len):
     mus = outputs[:, :, :, 0]
+    reg = torch.pow(mus - t_true.reshape(mus.shape), 2)
+    # repulsive ensemble loss
+    k = kernel(reg, reg.detach())
+    n_channels = reg.shape[0]
+    reg_mean, reg_std = reg.mean(dim=1), reg.std(dim=1)
+    # loss = torch.sum(reg_mean + (k.sum(dim=1) / k.detach().sum(dim=1) - 1) / data_len, dim=0) # loss shape: (n_parameters)
+    # logging.info(f"mse best channel: {reg_mean.min()}")
+    # logging.info(f"mse best channel: {reg_mean.max()}")
+    loss = torch.sum(reg_mean, dim=0) # loss shape: (n_parameters)
+    return loss.sum()/n_channels
+
+def repulsive_ensemble_exp_loss(outputs, t_true, data_len):
+    mus = outputs[:, :, :, 0]
+    mus = torch.exp(mus)
+    t_true = torch.exp(t_true)
+    reg = torch.pow(mus - t_true.reshape(mus.shape), 2)
+    # repulsive ensemble loss
+    k = kernel(reg, reg.detach())
+    n_channels = reg.shape[0]
+    reg_mean, reg_std = reg.mean(dim=1), reg.std(dim=1)
+    # loss = torch.sum(reg_mean + (k.sum(dim=1) / k.detach().sum(dim=1) - 1) / data_len, dim=0) # loss shape: (n_parameters)
+    loss = torch.sum(reg_mean, dim=0) # loss shape: (n_parameters)
+    return loss.sum()/n_channels
+
+def repulsive_ensemble_arctanh_loss(outputs, t_true, data_len):
+    mus = outputs[:, :, :, 0]
+    mus = torch.atanh(torch.clamp(mus, -0.999999, 0.999999))
+    t_true = torch.atanh(torch.clamp(t_true, -0.999999, 0.999999))
     reg = torch.pow(mus - t_true.reshape(mus.shape), 2)
     # repulsive ensemble loss
     k = kernel(reg, reg.detach())

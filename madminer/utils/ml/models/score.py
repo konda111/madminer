@@ -154,7 +154,7 @@ class RepulsiveEnsembleDenseLocalScoreModel(DenseLocalScoreModel):
             self.layers.append(nn.Dropout(self.dropout_prob))
         # output is a vector of size 2*n_parameters
         # saving the logr mean and width for each parameter sequentially (mu_1, sigma_1, mu_2, sigma_2, ...)
-        self.layers.append(StackedLinear(n_last, 2*n_parameters, n_channels))
+        self.layers.append(StackedLinear(n_last, n_parameters, n_channels))
 
 
 class BayesianDenseLocalScoreModel(DenseLocalScoreModel):

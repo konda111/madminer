@@ -460,19 +460,19 @@ class Trainer:
             for i, (label, value) in enumerate(zip(labels, contributions)):
                 if i > 0:
                     summary += ", "
-                summary += f"{label}: {value:>6.5f}"
+                summary += f"{label}: {value}"
             return summary
 
         summary = contribution_summary(loss_labels, loss_contributions_train)
-        train_report = f"  Epoch {(i_epoch+1):>3d}: train loss {loss_train:>8.5f} ({summary})"
+        train_report = f"  Epoch {(i_epoch+1):>3d}: train loss {loss_train} ({summary})"
         logging_fn(train_report)
 
         if loss_val is not None:
             summary = contribution_summary(loss_labels, loss_contributions_val)
-            val_report   = f"             val. loss  {loss_val:>8.5f} ({summary})"
+            val_report   = f"             val. loss  {loss_val} ({summary})"
             logging_fn(val_report)
             summary = contribution_summary(loss_labels, loss_contributions_train + loss_contributions_val)
-            total_report = f"           total. loss  {loss_train+loss_val:>8.5f} ({summary})"
+            total_report = f"           total. loss  {loss_train+loss_val} ({summary})"
             logging_fn(total_report)
 
     def wrap_up_early_stopping(self, best_model, currrent_loss, best_loss, best_epoch):
@@ -790,7 +790,7 @@ class RepulsiveEnsembeLocalScoreTrainer(Trainer):
 
         self._timer(start="fwd: model.forward", stop="fwd: check for nans")
         t_hat = self.model(x)
-        t_hat = torch.reshape(t_hat, (n_channels, batch_data["x"].shape[0], self.model.n_parameters, 2)) # bring outputs to shape (n_channels, n_data, n_parameters, 2)
+        t_hat = torch.reshape(t_hat, (n_channels, batch_data["x"].shape[0], self.model.n_parameters, 1)) # bring outputs to shape (n_channels, n_data, n_parameters, 2)
         self._timer(stop="fwd: model.forward", start="fwd: check for nans")
         self._check_for_nans("Model output", t_hat)
 

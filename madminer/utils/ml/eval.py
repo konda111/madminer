@@ -330,10 +330,17 @@ def evaluate_unc_local_score_model(
 
     return t_hat_mu, t_hat_sig, t_hat_sig_stoch, t_hat_sig_tot
 
-def evaluate_repulsive_ensemble_local_score_model(model, xs=None, run_on_gpu=True, double_precision=False, return_grad_x=False):
+def evaluate_repulsive_ensemble_local_score_model(
+    model, 
+    xs=None, 
+    run_on_gpu=True, 
+    double_precision=False, 
+    return_grad_x=False, 
+    return_individual_contributions=False
+):
     # CPU or GPU?
     run_on_gpu = run_on_gpu and torch.backends.mps.is_available()
-    device = torch.device("mps" if run_on_gpu else "cpu")
+    device = torch.device("cuda" if run_on_gpu else "cpu")
     dtype = torch.double if double_precision else torch.float
 
     # Prepare data
@@ -362,8 +369,12 @@ def evaluate_repulsive_ensemble_local_score_model(model, xs=None, run_on_gpu=Tru
 
     # Get data and return
     t_hat = t_hat.detach()
-    t_hat = torch.reshape(t_hat, (model.n_channels, xs.shape[0], model.n_parameters, 2)) # bring outputs to shape (n_channels, n_data, n_parameters, 2)
+    t_hat = torch.reshape(t_hat, (model.n_channels, xs.shape[0], model.n_parameters, 1)) # bring outputs to shape (n_channels, n_data, n_parameters, 2)
     output = t_hat[:, :, :, 0].numpy()
+    
+    if return_individual_contributions:
+        return output
+    
     t_hat_mu = np.mean(output, axis=0)
     m = output - output.sum(0,keepdims=True)/model.n_channels
     t_hat_cov = np.einsum('ijk,ijl->jkl', m, m)/(model.n_channels)

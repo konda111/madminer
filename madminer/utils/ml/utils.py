@@ -148,9 +148,9 @@ def get_loss(method, alpha):
         loss_weights = [1.0]
         loss_labels = ["heteroskedastic_loss"]
     elif method == "repulsive_ensemble_sally":
-        loss_functions = [losses.repulsive_ensemble_loss, losses.repulsive_ensemble_mse_loss]
-        loss_weights = [1.0, 0.0]
-        loss_labels = ["repulsive_ensemble_loss", "repulsive_ensemble_mse_loss"]
+        loss_functions = [losses.repulsive_ensemble_loss]
+        loss_weights = [1.0]
+        loss_labels = ["repulsive_ensemble_loss"]
     elif method == "bayesian_sally":
         loss_functions = [losses.bayesian_loss, losses.bayesian_mse_loss]
         loss_weights = [1.0, 0.0]
