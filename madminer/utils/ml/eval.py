@@ -311,8 +311,8 @@ def evaluate_unc_local_score_model(
 
         # Get data and return
         t_hat = t_hat.detach().numpy()
-        t_hat_mu = t_hat[:, 0]
-        t_hat_sig = np.exp(.5*t_hat[:, 1])
+        t_hat_mu = t_hat[:, ::2]
+        t_hat_sig = np.exp(.5*t_hat[:, 1::2])
         t_hat_list.append([t_hat_mu, t_hat_sig])
         if return_grad_x:
             x_gradients = x_gradients.detach().numpy()

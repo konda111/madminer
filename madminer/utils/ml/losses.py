@@ -118,9 +118,9 @@ def exp_score_mse(t_hat, t_true):
 
 
 def heteroskedastic_loss(outputs, t_true):
-    mus = outputs[:, 0]
-    logsigma2s = outputs[:, 1]
-    out = torch.pow(mus - t_true.reshape(-1), 2)/(2 * logsigma2s.exp()) + 1/2. * logsigma2s
+    mus = outputs[:, ::2]
+    logsigma2s = outputs[:, 1::2]
+    out = torch.pow(mus - t_true, 2)/(2 * logsigma2s.exp()) + 1/2. * logsigma2s
     return torch.mean(out)
 
 def repulsive_ensemble_loss(outputs, t_true, data_len):
