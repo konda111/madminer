@@ -339,7 +339,7 @@ def evaluate_repulsive_ensemble_local_score_model(
     return_individual_contributions=False
 ):
     # CPU or GPU?
-    run_on_gpu = run_on_gpu and torch.backends.mps.is_available()
+    run_on_gpu = run_on_gpu and torch.cuda.is_available()
     device = torch.device("cuda" if run_on_gpu else "cpu")
     dtype = torch.double if double_precision else torch.float
 

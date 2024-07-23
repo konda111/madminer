@@ -70,6 +70,7 @@ class ScoreEstimator(Estimator):
         n_workers=8,
         clip_gradient=None,
         early_stopping_patience=None,
+        inv_func=None
     ):
         """
         Trains the network.
@@ -140,11 +141,14 @@ class ScoreEstimator(Estimator):
         if method not in ["sally", "sallino", "sally_weighted", "heteroskedastic_sally", "repulsive_ensemble_sally"]:
             logger.warning("Method %s not allowed for score estimators. Using 'sally' instead.", method)
             method = "sally"
-        if method == "sally_weighted" and train_weights is None:
-            raise ValueError("Method sally_weighted requires train_weights to be given!")
-        if method in ["sally", "sallino"] and train_weights is not None:
-            logger.warning("Method %s does not support train_weights. Ignoring them.", method)
-            train_weights = None
+        # if method == "sally_weighted" and train_weights is None:
+        #     raise ValueError("Method sally_weighted requires train_weights to be given!")
+        # if method in ["sally", "sallino"] and train_weights is not None:
+        #     logger.warning("Method %s does not support train_weights. Ignoring them.", method)
+        #     train_weights = None
+        if train_weights is None:
+            logger.debug("No training weights found, using uniform weights.")
+            train_weights = np.ones_like(t_xz)
             
         logger.info("Starting training")
         logger.info("  Batch size:             %s", batch_size)
@@ -247,7 +251,7 @@ class ScoreEstimator(Estimator):
 
         # Train model
         logger.info("Training model")
-        trainer = LocalScoreTrainer(self.model, n_workers=n_workers)
+        trainer = LocalScoreTrainer(self.model, n_workers=n_workers,      inv_func=inv_func)
         result = trainer.train(
             data=data,
             data_val=data_val,
@@ -265,7 +269,7 @@ class ScoreEstimator(Estimator):
             verbose=verbose,
             scheduler=scheduler,
             clip_gradient=clip_gradient,
-            early_stopping_patience=early_stopping_patience,
+            early_stopping_patience=early_stopping_patience
         )
         return result
 
@@ -580,6 +584,7 @@ class RepulsiveEnsembleScoreEstimator(ScoreEstimator):
         t_xz,
         x_val=None,
         t_xz_val=None,
+        train_weights=None,
         optimizer="amsgrad",
         n_epochs=50,
         batch_size=128,
@@ -668,6 +673,9 @@ class RepulsiveEnsembleScoreEstimator(ScoreEstimator):
         if method not in ["repulsive_ensemble_sally"]:
             logger.warning("Method %s not allowed for repulsive_ensemble_sally estimators. Using 'repulsive_ensemble_sally' instead.", method)
             method = "repulsive_ensemble_sally"
+        if train_weights is None:
+            logger.debug("No training weights found, using uniform weights.")
+            train_weights = np.ones_like(t_xz)
 
         logger.info("Starting training")
         logger.info("  Batch size:             %s", batch_size)
@@ -690,12 +698,15 @@ class RepulsiveEnsembleScoreEstimator(ScoreEstimator):
         memmap_threshold = 1.0 if memmap else None
         x = load_and_check(x, memmap_files_larger_than_gb=memmap_threshold)
         t_xz = load_and_check(t_xz, memmap_files_larger_than_gb=memmap_threshold)
+        train_weights = load_and_check(train_weights, memmap_files_larger_than_gb=memmap_threshold)
 
         # Infer dimensions of problem
         n_samples = x.shape[0]
         n_observables = x.shape[1]
         n_parameters = t_xz.shape[1]
         logger.info("Found %s samples with %s parameters and %s observables", n_samples, n_parameters, n_observables)
+        if train_weights is not None:
+            assert train_weights.shape[0] == n_samples
 
         # Limit sample size
         if limit_samplesize is not None and limit_samplesize < n_samples:
@@ -748,7 +759,7 @@ class RepulsiveEnsembleScoreEstimator(ScoreEstimator):
             raise RuntimeError(f"Number of observables does not match: {n_observables} vs {self.n_observables}")
 
         # Data
-        data = self._package_training_data(x, t_xz)
+        data = self._package_training_data(x, t_xz, weights=train_weights)
         if external_validation:
             data_val = self._package_training_data(x_val, t_xz_val)
         else:

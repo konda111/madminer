@@ -8,6 +8,12 @@ from torch.nn import MSELoss
 
 logger = logging.getLogger(__name__)
 
+def symlog(x, T=1):
+    return torch.where(torch.abs(x) <= T, x, torch.sign(x) * (T + torch.log(torch.abs(x)/T)))
+
+def inv_symlog(x, T=1):
+    return torch.where(torch.abs(x) <= T, x, torch.sign(x) * T * torch.exp(torch.abs(x) - T))
+
 # RBF kernel with median estimator
 def kernel(x, y):
     channels = len(x)
@@ -101,8 +107,15 @@ def repulsive_ratio_augmented_xe(s_hat, log_r_hat, t0_hat, t1_hat, y_true, r_tru
     loss = torch.sum(losses_mean + (k.sum(dim=1) / k.detach().sum(dim=1) - 1) / data_len, dim=0) # loss shape: (n_parameters)
     return loss.sum()/n_channels
 
-def local_score_mse(t_hat, t_true):
-    return MSELoss()(t_hat, t_true)
+def local_score_mse(t_hat, t_true, weights, inv_func=None):
+    match inv_func:
+        case 'inv_symlog':
+            return (weights * (inv_symlog(t_hat) - t_true) ** 2).mean()
+        case 'exp':
+            return (weights * (torch.exp(t_hat) - t_true) ** 2).mean()
+        case _:
+            return (weights * (t_hat - t_true) ** 2).mean()
+    # return MSELoss()(t_hat, t_true)
 
 def arctanh_score_mse(t_hat, t_true):
     t_hat = torch.clamp(t_hat, -0.999999, 0.999999)
@@ -123,11 +136,11 @@ def heteroskedastic_loss(outputs, t_true):
     out = torch.pow(mus - t_true, 2)/(2 * logsigma2s.exp()) + 1/2. * logsigma2s
     return torch.mean(out)
 
-def repulsive_ensemble_loss(outputs, t_true, data_len):
+def repulsive_ensemble_loss(outputs, t_true, weights, data_len):
     # first compute heteroskedastic regression loss
     mus = outputs[:, :, :, 0]
     # logsigma2s = outputs[:, :, :, 1]
-    reg = torch.pow(mus - t_true.reshape(mus.shape), 2)
+    reg = weights * torch.pow(mus - t_true.reshape(mus.shape), 2)
     n_channels = reg.shape[0]
     # reg = torch.pow(mus - t_true.reshape(mus.shape), 2)/(2 * logsigma2s.exp()) + 1/2. * logsigma2s
     # repulsive ensemble loss

@@ -21,11 +21,18 @@ logger = logging.getLogger(__name__)
 class Trainer:
     """Trainer class. Any subclass has to implement the forward_pass() function."""
 
-    def __init__(self, model, run_on_gpu=True, double_precision=False, n_workers=8):
+    def __init__(self, 
+                 model, 
+                 run_on_gpu=True, 
+                 double_precision=False, 
+                 n_workers=8,
+                 inv_func=None
+                 ):
         self._init_timer()
         self._timer(start="ALL")
         self._timer(start="initialize model")
         self.model = model
+        self.inv_func = inv_func
         self.run_on_gpu = run_on_gpu and torch.cuda.is_available()
         self.device = torch.device("cuda" if self.run_on_gpu else "cpu")
         self.dtype = torch.double if double_precision else torch.float
@@ -748,6 +755,7 @@ class LocalScoreTrainer(Trainer):
         self._timer(start="fwd: move data")
         x = batch_data["x"].to(self.device, self.dtype, non_blocking=True)
         t_xz = batch_data["t_xz"].to(self.device, self.dtype, non_blocking=True)
+        weights = batch_data["weights"].to(self.device, self.dtype, non_blocking=True)
         self._timer(stop="fwd: move data", start="fwd: check for nans")
         self._check_for_nans("Training data", x)
         self._check_for_nans("Augmented training data", t_xz)
@@ -758,7 +766,7 @@ class LocalScoreTrainer(Trainer):
         self._check_for_nans("Model output", t_hat)
 
         self._timer(start="fwd: calculate losses", stop="fwd: check for nans")
-        losses = [loss_function(t_hat, t_xz) for loss_function in loss_functions]
+        losses = [loss_function(t_hat, t_xz, weights, inv_func=self.inv_func) for loss_function in loss_functions]
         self._timer(stop="fwd: calculate losses", start="fwd: check for nans")
         self._check_for_nans("Loss", *losses)
         self._timer(stop="fwd: check for nans")
@@ -784,6 +792,9 @@ class RepulsiveEnsembeLocalScoreTrainer(Trainer):
         t_xz = batch_data["t_xz"][None,:].clone().detach()
         t_xz = t_xz.expand(n_channels,-1,-1)
         t_xz = t_xz.to(self.device, self.dtype, non_blocking=True)
+        weights = batch_data["weights"][None,:].clone().detach()
+        weights = weights.expand(n_channels,-1,-1)
+        weights = weights.to(self.device, self.dtype, non_blocking=True)
         self._timer(stop="fwd: move data", start="fwd: check for nans")
         self._check_for_nans("Training data", x)
         self._check_for_nans("Augmented training data", t_xz)
@@ -796,7 +807,7 @@ class RepulsiveEnsembeLocalScoreTrainer(Trainer):
 
         self._timer(start="fwd: calculate losses", stop="fwd: check for nans")
          # bring outputs to shape [[mu_1, sigma_1], [mu_2, sigma_2], ...]
-        losses = [loss_function(t_hat, t_xz, self.data_len) for loss_function in loss_functions]
+        losses = [loss_function(t_hat, t_xz, weights, self.data_len) for loss_function in loss_functions]
         self._timer(stop="fwd: calculate losses", start="fwd: check for nans")
         self._check_for_nans("Loss", *losses)
         self._timer(stop="fwd: check for nans")
