@@ -3,6 +3,8 @@ import logging
 import numpy as np
 import torch
 from torch import tensor
+from torch.utils.data import DataLoader
+import gc
 
 from madminer.utils.ml.models.ratio import DenseSingleParameterizedRatioModel
 from madminer.utils.ml.models.ratio import RepulsiveEnsembleDenseSingleParameterizedRatioModel
@@ -345,20 +347,35 @@ def evaluate_repulsive_ensemble_local_score_model(
 
     # Prepare data
     xs = torch.stack([tensor(i) for i in xs])
-    x = xs.clone().detach()
-    x = x[None,:].expand(model.n_channels,-1,-1)
 
     model = model.to(device, dtype)
-    x = x.to(device, dtype)
 
     # Evaluate networks
     if return_grad_x:
         model.eval()
         t_hat, x_gradients = model(x, return_grad_x=True)
+        t_hat = t_hat.detach()
     else:
         with torch.no_grad():
             model.eval()
-            t_hat = model(x)
+            testloader = DataLoader(
+                xs.clone().detach(),
+                batch_size=64, 
+                shuffle=False,
+                pin_memory=True
+            )
+            t_hat = np.array([])
+            
+            for i, x in enumerate(testloader):
+                x = x[None,:].expand(model.n_channels,-1,-1)
+                x = x.to(device, dtype=dtype, non_blocking=True)
+                if i == 0:
+                    t_hat = model(x).detach().cpu().numpy()
+                else:
+                    t_hat = np.concatenate([
+                        t_hat,
+                        model(x).detach().cpu().numpy()
+                    ])
         x_gradients = None
 
     # Copy back tensors to CPU
@@ -366,9 +383,12 @@ def evaluate_repulsive_ensemble_local_score_model(
         t_hat = t_hat.cpu()
         if x_gradients is not None:
             x_gradients = x_gradients.cpu()
+            
+    # free memory
+    del x
+    gc.collect()
 
     # Get data and return
-    t_hat = t_hat.detach()
     t_hat = torch.reshape(t_hat, (model.n_channels, xs.shape[0], model.n_parameters, 1)) # bring outputs to shape (n_channels, n_data, n_parameters, 2)
     output = t_hat[:, :, :, 0].numpy()
     
