@@ -673,9 +673,6 @@ class RepulsiveEnsembleScoreEstimator(ScoreEstimator):
         if method not in ["repulsive_ensemble_sally"]:
             logger.warning("Method %s not allowed for repulsive_ensemble_sally estimators. Using 'repulsive_ensemble_sally' instead.", method)
             method = "repulsive_ensemble_sally"
-        if train_weights is None:
-            logger.debug("No training weights found, using uniform weights.")
-            train_weights = np.ones_like(t_xz)
 
         logger.info("Starting training")
         logger.info("  Batch size:             %s", batch_size)
@@ -698,6 +695,9 @@ class RepulsiveEnsembleScoreEstimator(ScoreEstimator):
         memmap_threshold = 1.0 if memmap else None
         x = load_and_check(x, memmap_files_larger_than_gb=memmap_threshold)
         t_xz = load_and_check(t_xz, memmap_files_larger_than_gb=memmap_threshold)
+        if train_weights is None:
+            logger.debug("No training weights found, using uniform weights.")
+            train_weights = np.ones_like(t_xz)
         train_weights = load_and_check(train_weights, memmap_files_larger_than_gb=memmap_threshold)
 
         # Infer dimensions of problem

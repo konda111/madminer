@@ -352,9 +352,10 @@ def evaluate_repulsive_ensemble_local_score_model(
 
     # Evaluate networks
     if return_grad_x:
+        x = xs[None,:].expand(model.n_channels,-1,-1)
         model.eval()
         t_hat, x_gradients = model(x, return_grad_x=True)
-        t_hat = t_hat.detach()
+        t_hat = t_hat.detach().cpu().numpy()
     else:
         with torch.no_grad():
             model.eval()
@@ -375,22 +376,16 @@ def evaluate_repulsive_ensemble_local_score_model(
                     t_hat = np.concatenate([
                         t_hat,
                         model(x).detach().cpu().numpy()
-                    ])
+                    ], axis=1)
         x_gradients = None
-
-    # Copy back tensors to CPU
-    if run_on_gpu:
-        t_hat = t_hat.cpu()
-        if x_gradients is not None:
-            x_gradients = x_gradients.cpu()
             
     # free memory
     del x
     gc.collect()
 
     # Get data and return
-    t_hat = torch.reshape(t_hat, (model.n_channels, xs.shape[0], model.n_parameters, 1)) # bring outputs to shape (n_channels, n_data, n_parameters, 2)
-    output = t_hat[:, :, :, 0].numpy()
+    t_hat = np.reshape(t_hat, (model.n_channels, xs.shape[0], model.n_parameters, 1)) # bring outputs to shape (n_channels, n_data, n_parameters, 2)
+    output = t_hat[:, :, :, 0]
     
     if return_individual_contributions:
         return output
