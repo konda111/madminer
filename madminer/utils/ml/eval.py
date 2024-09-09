@@ -361,7 +361,7 @@ def evaluate_repulsive_ensemble_local_score_model(
             model.eval()
             testloader = DataLoader(
                 xs.clone().detach(),
-                batch_size=64, 
+                batch_size=1024, 
                 shuffle=False,
                 pin_memory=True
             )
