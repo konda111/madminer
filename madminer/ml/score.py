@@ -569,9 +569,10 @@ class RepulsiveEnsembleScoreEstimator(ScoreEstimator):
         n_hidden=(100,), 
         activation="tanh", 
         dropout_prob=0.0,
-        n_channels=100
+        n_channels=100,
+        kernel_alpha=1
     ):
-        Estimator.__init__(self, features, n_hidden, activation, dropout_prob, n_channels)
+        Estimator.__init__(self, features, n_hidden, activation, dropout_prob, n_channels, kernel_alpha)
 
         self.nuisance_profile_matrix = None
         self.nuisance_project_matrix = None

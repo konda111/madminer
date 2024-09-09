@@ -121,6 +121,7 @@ class RepulsiveEnsembleDenseLocalScoreModel(DenseLocalScoreModel):
         n_parameters, 
         n_hidden, 
         n_channels=100,
+        kernel_alpha=1,
         activation="tanh", 
         dropout_prob=0.0):
         super().__init__(
@@ -136,6 +137,7 @@ class RepulsiveEnsembleDenseLocalScoreModel(DenseLocalScoreModel):
         self.activation = get_activation_function(activation)
         self.dropout_prob = dropout_prob
         self.n_channels = n_channels
+        self.kernel_alpha = kernel_alpha
         self.n_parameters = n_parameters
 
         # Build network

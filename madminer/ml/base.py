@@ -36,7 +36,8 @@ class Estimator(ABC):
         n_hidden=(100,), 
         activation="tanh", 
         dropout_prob=0.0,
-        n_channels=100
+        n_channels=100,
+        kernel_alpha=1
     ):
         self.features = features
         self.n_hidden = n_hidden
@@ -44,6 +45,7 @@ class Estimator(ABC):
         self.dropout_prob = dropout_prob
         # n_channels only relevant for repulsive ensemble
         self.n_channels = n_channels
+        self.kernel_alpha = kernel_alpha
 
         self.model = None
         self.n_observables = None

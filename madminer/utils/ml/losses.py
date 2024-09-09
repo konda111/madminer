@@ -136,8 +136,7 @@ def heteroskedastic_loss(outputs, t_true):
     out = torch.pow(mus - t_true, 2)/(2 * logsigma2s.exp()) + 1/2. * logsigma2s
     return torch.mean(out)
 
-def repulsive_ensemble_loss(outputs, t_true, weights, data_len):
-    # first compute heteroskedastic regression loss
+def repulsive_ensemble_loss(outputs, t_true, weights, data_len, kernel_alpha=1):
     mus = outputs[:, :, :, 0]
     # logsigma2s = outputs[:, :, :, 1]
     reg = weights * torch.pow(mus - t_true.reshape(mus.shape), 2)
@@ -146,7 +145,7 @@ def repulsive_ensemble_loss(outputs, t_true, weights, data_len):
     # repulsive ensemble loss
     k = kernel(reg, reg.detach())
     reg_mean, reg_std = reg.mean(dim=1), reg.std(dim=1)
-    loss = torch.sum(reg_mean + (k.sum(dim=1) / k.detach().sum(dim=1) - 1) / data_len, dim=0) # loss shape: (n_parameters)
+    loss = torch.sum(reg_mean + kernel_alpha * (k.sum(dim=1) / k.detach().sum(dim=1) - 1) / data_len, dim=0) # loss shape: (n_parameters)
     return loss.sum()/n_channels
 
 def repulsive_ensemble_mse_loss(outputs, t_true, data_len):
