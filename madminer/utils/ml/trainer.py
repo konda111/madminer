@@ -786,6 +786,7 @@ class RepulsiveEnsembeLocalScoreTrainer(Trainer):
     def forward_pass(self, batch_data, loss_functions):
         self._timer(start="fwd: move data")
         n_channels = self.model.n_channels
+        kernel_alpha = self.model.kernel_alpha
         x = batch_data["x"][None,:].clone().detach()
         x = x.expand(n_channels,-1,-1)
         x = x.to(self.device, self.dtype, non_blocking=True)
@@ -807,7 +808,7 @@ class RepulsiveEnsembeLocalScoreTrainer(Trainer):
 
         self._timer(start="fwd: calculate losses", stop="fwd: check for nans")
          # bring outputs to shape [[mu_1, sigma_1], [mu_2, sigma_2], ...]
-        losses = [loss_function(t_hat, t_xz, weights, self.data_len) for loss_function in loss_functions]
+        losses = [loss_function(t_hat, t_xz, weights, self.data_len, kernel_alpha=kernel_alpha) for loss_function in loss_functions]
         self._timer(stop="fwd: calculate losses", start="fwd: check for nans")
         self._check_for_nans("Loss", *losses)
         self._timer(stop="fwd: check for nans")
